@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="header">
+    <div class="logo">99</div>
+    <div class="title">Sourcing Clipper</div>
+  </div>
+
+  <div id="loading" class="status-msg">Extracting profile...</div>
+  <div id="error" class="status-msg error hidden">Could not read profile. Make sure you are on a LinkedIn or Indeed profile page.</div>
+  <div id="success" class="status-msg success hidden">Candidate imported successfully!</div>
+
+  <form id="candidate-form" class="hidden">
+    <div class="form-group">
+      <label>Full Name</label>
+      <input type="text" id="name" required />
+    </div>
+    
+    <div class="form-group">
+      <label>Current Role</label>
+      <input type="text" id="role" required />
+    </div>
+
+    <div class="form-group">
+      <label>Location</label>
+      <input type="text" id="location" />
+    </div>
+
+    <div class="form-group">
+      <label>Experience (Years)</label>
+      <input type="number" id="experience" value="0" required />
+    </div>
+
+    <div class="form-group">
+      <label>Extracted Skills (Comma separated)</label>
+      <input type="text" id="skills" value="General" />
+    </div>
+
+    <input type="hidden" id="summary" />
+    <input type="hidden" id="source" />
+    
+    <button type="submit" id="submit-btn">Import to 99Placement</button>
+  </form>
+
+  <script src="popup.js"></script>
+</body>
+</html>

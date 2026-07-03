@@ -1,22 +1,32 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 0.2.0
+  description: 99Placement Recruitment OS API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: auth
+  - name: companies
+  - name: requirements
+  - name: candidates
+  - name: pipeline
+  - name: screening
+  - name: assessments
+  - name: clientInterviews
+  - name: offers
+  - name: joining
+  - name: dashboard
+  - name: notifications
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +34,2045 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── AUTH ────────────────────────────────────────────────────────────────────
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current employee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Logged out
+
+  # ── COMPANIES ───────────────────────────────────────────────────────────────
+  /companies:
+    get:
+      operationId: listCompanies
+      tags: [companies]
+      summary: List all companies
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Companies list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Company"
+    post:
+      operationId: createCompany
+      tags: [companies]
+      summary: Create a company
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCompanyRequest"
+      responses:
+        "201":
+          description: Created company
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+
+  /companies/{id}:
+    get:
+      operationId: getCompany
+      tags: [companies]
+      summary: Get company by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Company
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateCompany
+      tags: [companies]
+      summary: Update company
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCompanyRequest"
+      responses:
+        "200":
+          description: Updated company
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+
+  /companies/{id}/contacts:
+    get:
+      operationId: listCompanyContacts
+      tags: [companies]
+      summary: List contacts for a company
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Contacts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CompanyContact"
+    post:
+      operationId: createCompanyContact
+      tags: [companies]
+      summary: Add contact to company
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCompanyContactRequest"
+      responses:
+        "201":
+          description: Created contact
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyContact"
+
+  # ── REQUIREMENTS ────────────────────────────────────────────────────────────
+  /requirements:
+    get:
+      operationId: listRequirements
+      tags: [requirements]
+      summary: List requirements
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: urgency
+          in: query
+          schema:
+            type: string
+        - name: companyId
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Requirements list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RequirementWithCompany"
+    post:
+      operationId: createRequirement
+      tags: [requirements]
+      summary: Create a requirement
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRequirementRequest"
+      responses:
+        "201":
+          description: Created requirement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Requirement"
+
+  /requirements/{id}:
+    get:
+      operationId: getRequirement
+      tags: [requirements]
+      summary: Get requirement with pipeline stats
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Requirement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequirementWithCompany"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateRequirement
+      tags: [requirements]
+      summary: Update requirement
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRequirementRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Requirement"
+    delete:
+      operationId: deleteRequirement
+      tags: [requirements]
+      summary: Delete requirement (soft)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  # ── CANDIDATES ──────────────────────────────────────────────────────────────
+  /candidates:
+    get:
+      operationId: listCandidates
+      tags: [candidates]
+      summary: List candidates
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: stage
+          in: query
+          schema:
+            type: string
+        - name: source
+          in: query
+          schema:
+            type: string
+        - name: location
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Candidates list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Candidate"
+    post:
+      operationId: createCandidate
+      tags: [candidates]
+      summary: Create a candidate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCandidateRequest"
+      responses:
+        "201":
+          description: Created candidate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Candidate"
+
+  /candidates/{id}:
+    get:
+      operationId: getCandidate
+      tags: [candidates]
+      summary: Get candidate with full profile
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Candidate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Candidate"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateCandidate
+      tags: [candidates]
+      summary: Update candidate profile
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCandidateRequest"
+      responses:
+        "200":
+          description: Updated candidate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Candidate"
+    delete:
+      operationId: deleteCandidate
+      tags: [candidates]
+      summary: Delete candidate (soft)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  /candidates/{id}/apply/{requirementId}:
+    post:
+      operationId: applyCandidate
+      tags: [candidates]
+      summary: Add candidate to requirement pipeline
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: requirementId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Pipeline entry created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineEntry"
+
+  # ── PIPELINE ─────────────────────────────────────────────────────────────────
+  /pipeline:
+    get:
+      operationId: getKanbanPipeline
+      tags: [pipeline]
+      summary: Get kanban pipeline view
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: requirementId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Kanban pipeline grouped by stage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KanbanPipeline"
+
+  /pipeline/{id}/stage:
+    patch:
+      operationId: updatePipelineStage
+      tags: [pipeline]
+      summary: Move candidate to a different stage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStageRequest"
+      responses:
+        "200":
+          description: Updated pipeline entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineEntry"
+
+  # ── SCREENING ────────────────────────────────────────────────────────────────
+  /screening:
+    post:
+      operationId: createScreening
+      tags: [screening]
+      summary: Create a screening interview record
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateScreeningRequest"
+      responses:
+        "201":
+          description: Created screening
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Screening"
+
+  /screening/{id}:
+    get:
+      operationId: getScreening
+      tags: [screening]
+      summary: Get screening with criteria scores
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Screening
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Screening"
+    patch:
+      operationId: updateScreening
+      tags: [screening]
+      summary: Save/update screening scores
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateScreeningRequest"
+      responses:
+        "200":
+          description: Updated screening
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Screening"
+
+  /screening/{id}/submit:
+    post:
+      operationId: submitScreening
+      tags: [screening]
+      summary: Lock screening and set verdict
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitVerdictRequest"
+      responses:
+        "200":
+          description: Submitted screening
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Screening"
+
+  # ── ASSESSMENTS ──────────────────────────────────────────────────────────────
+  /assessment-questions:
+    get:
+      operationId: listAssessmentQuestions
+      tags: [assessments]
+      summary: List questions from question bank
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: difficulty
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Questions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AssessmentQuestion"
+    post:
+      operationId: createAssessmentQuestion
+      tags: [assessments]
+      summary: Add question to bank
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateQuestionRequest"
+      responses:
+        "201":
+          description: Created question
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssessmentQuestion"
+
+  /assessments:
+    post:
+      operationId: createAssessmentTest
+      tags: [assessments]
+      summary: Create a test for a candidate pipeline entry
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAssessmentTestRequest"
+      responses:
+        "201":
+          description: Created test with questions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssessmentTestWithQuestions"
+
+  /assessments/{id}:
+    get:
+      operationId: getAssessmentTest
+      tags: [assessments]
+      summary: Get test and results
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Assessment test
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssessmentTestWithQuestions"
+
+  /assessments/{id}/submit:
+    post:
+      operationId: submitAssessment
+      tags: [assessments]
+      summary: Submit answers and get score
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitAssessmentRequest"
+      responses:
+        "200":
+          description: Scored assessment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssessmentTestWithQuestions"
+
+  # ── CLIENT INTERVIEWS ────────────────────────────────────────────────────────
+  /client-interviews:
+    get:
+      operationId: listClientInterviews
+      tags: [clientInterviews]
+      summary: List client interviews
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: pipelineId
+          in: query
+          schema:
+            type: string
+        - name: verdict
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Client interviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClientInterviewWithCandidate"
+    post:
+      operationId: createClientInterview
+      tags: [clientInterviews]
+      summary: Schedule a client interview
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClientInterviewRequest"
+      responses:
+        "201":
+          description: Scheduled interview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientInterviewWithCandidate"
+
+  /client-interviews/{id}:
+    get:
+      operationId: getClientInterview
+      tags: [clientInterviews]
+      summary: Get interview with feedback
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Interview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientInterviewWithCandidate"
+
+  /client-interviews/{id}/feedback:
+    post:
+      operationId: submitClientInterviewFeedback
+      tags: [clientInterviews]
+      summary: Submit feedback and verdict for interview
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientInterviewFeedbackRequest"
+      responses:
+        "200":
+          description: Updated interview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientInterviewWithCandidate"
+
+  # ── OFFERS ───────────────────────────────────────────────────────────────────
+  /offers:
+    get:
+      operationId: listOffers
+      tags: [offers]
+      summary: List offers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Offers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OfferWithCandidate"
+    post:
+      operationId: createOffer
+      tags: [offers]
+      summary: Create an offer
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOfferRequest"
+      responses:
+        "201":
+          description: Created offer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OfferWithCandidate"
+
+  /offers/{id}:
+    get:
+      operationId: getOffer
+      tags: [offers]
+      summary: Get offer
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Offer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OfferWithCandidate"
+
+  /offers/{id}/status:
+    patch:
+      operationId: updateOfferStatus
+      tags: [offers]
+      summary: Update offer status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOfferStatusRequest"
+      responses:
+        "200":
+          description: Updated offer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OfferWithCandidate"
+
+  # ── JOINING ──────────────────────────────────────────────────────────────────
+  /joining:
+    get:
+      operationId: listJoining
+      tags: [joining]
+      summary: List joining records
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Joining records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JoiningWithCandidate"
+    post:
+      operationId: createJoining
+      tags: [joining]
+      summary: Create joining record
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateJoiningRequest"
+      responses:
+        "201":
+          description: Created joining record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JoiningWithCandidate"
+
+  /joining/{id}:
+    patch:
+      operationId: updateJoining
+      tags: [joining]
+      summary: Update joining status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateJoiningRequest"
+      responses:
+        "200":
+          description: Updated joining
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JoiningWithCandidate"
+
+  /joining/{id}/followup:
+    post:
+      operationId: createFollowup
+      tags: [joining]
+      summary: Log a post-joining follow-up
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFollowupRequest"
+      responses:
+        "201":
+          description: Created followup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostJoiningFollowup"
+
+  # ── DASHBOARD ────────────────────────────────────────────────────────────────
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Main dashboard KPIs
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/pipeline-funnel:
+    get:
+      operationId: getPipelineFunnel
+      tags: [dashboard]
+      summary: Pipeline funnel counts per stage
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Funnel data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FunnelStage"
+
+  # ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications for current user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+  /notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark notification as read
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+
+  /notifications/read-all:
+    patch:
+      operationId: markAllNotificationsRead
+      tags: [notifications]
+      summary: Mark all notifications read
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Done
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
     HealthStatus:
       type: object
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    # AUTH ──────────────────────────────────────────────────────────────────────
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required: [email, password]
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        employee:
+          $ref: "#/components/schemas/Employee"
+      required: [token, employee]
+
+    Employee:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, recruiter, hr, client]
+        companyId:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, email, role, isActive, createdAt]
+
+    # COMPANIES ─────────────────────────────────────────────────────────────────
+    Company:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        industry:
+          type: string
+          nullable: true
+        website:
+          type: string
+          nullable: true
+        gstin:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, isActive, createdAt]
+
+    CreateCompanyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        industry:
+          type: string
+        website:
+          type: string
+        gstin:
+          type: string
+        address:
+          type: string
+      required: [name]
+
+    CompanyContact:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        designation:
+          type: string
+          nullable: true
+        isPrimary:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, companyId, name, isPrimary, createdAt]
+
+    CreateCompanyContactRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        designation:
+          type: string
+        isPrimary:
+          type: boolean
+      required: [name]
+
+    # REQUIREMENTS ──────────────────────────────────────────────────────────────
+    Requirement:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        recruiterId:
+          type: string
+          nullable: true
+        title:
+          type: string
+        location:
+          type: string
+        jobType:
+          type: string
+        urgency:
+          type: string
+          enum: [critical, high, normal]
+        salaryBand:
+          type: string
+          nullable: true
+        jdText:
+          type: string
+          nullable: true
+        openingsCount:
+          type: integer
+        status:
+          type: string
+          enum: [open, on_hold, closed, cancelled]
+        deadline:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, companyId, title, location, jobType, urgency, openingsCount, status, createdAt, updatedAt]
+
+    RequirementWithCompany:
+      allOf:
+        - $ref: "#/components/schemas/Requirement"
+        - type: object
+          properties:
+            company:
+              $ref: "#/components/schemas/Company"
+            stageCounts:
+              type: object
+              additionalProperties:
+                type: integer
+
+    CreateRequirementRequest:
+      type: object
+      properties:
+        companyId:
+          type: string
+        title:
+          type: string
+        location:
+          type: string
+        jobType:
+          type: string
+        urgency:
+          type: string
+          enum: [critical, high, normal]
+        salaryBand:
+          type: string
+        jdText:
+          type: string
+        openingsCount:
+          type: integer
+        status:
+          type: string
+          enum: [open, on_hold, closed, cancelled]
+        deadline:
+          type: string
+          format: date-time
+      required: [companyId, title, location]
+
+    # CANDIDATES ────────────────────────────────────────────────────────────────
+    Candidate:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        initials:
+          type: string
+          nullable: true
+        email:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        currentRole:
+          type: string
+          nullable: true
+        experienceYears:
+          type: integer
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        skills:
+          type: array
+          items:
+            type: string
+          nullable: true
+        source:
+          type: string
+          enum: [referral, portal, social, internal, direct]
+        currentCtc:
+          type: integer
+          nullable: true
+        expectedCtc:
+          type: integer
+          nullable: true
+        noticeDays:
+          type: integer
+          nullable: true
+        summary:
+          type: string
+          nullable: true
+        resumeUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, email, source, createdAt]
+
+    CreateCandidateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        currentRole:
+          type: string
+        experienceYears:
+          type: integer
+        location:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+        source:
+          type: string
+          enum: [referral, portal, social, internal, direct]
+        currentCtc:
+          type: integer
+        expectedCtc:
+          type: integer
+        noticeDays:
+          type: integer
+        summary:
+          type: string
+      required: [name, email]
+
+    # PIPELINE ──────────────────────────────────────────────────────────────────
+    PipelineEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        candidateId:
+          type: string
+        requirementId:
+          type: string
+        stage:
+          type: string
+          enum: [sourced, screened, assessed, shortlisted, client_interview, offer, joining, post_joining, rejected, dropped]
+        assignedRecruiterId:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        stageUpdatedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, candidateId, requirementId, stage, stageUpdatedAt, createdAt]
+
+    PipelineEntryWithCandidate:
+      allOf:
+        - $ref: "#/components/schemas/PipelineEntry"
+        - type: object
+          properties:
+            candidate:
+              $ref: "#/components/schemas/Candidate"
+
+    KanbanPipeline:
+      type: object
+      properties:
+        sourced:
+          type: array
+          items:
+            $ref: "#/components/schemas/PipelineEntryWithCandidate"
+        screened:
+          type: array
+          items:
+            $ref: "#/components/schemas/PipelineEntryWithCandidate"
+        assessed:
+          type: array
+          items:
+            $ref: "#/components/schemas/PipelineEntryWithCandidate"
+        shortlisted:
+          type: array
+          items:
+            $ref: "#/components/schemas/PipelineEntryWithCandidate"
+        client_interview:
+          type: array
+          items:
+            $ref: "#/components/schemas/PipelineEntryWithCandidate"
+        offer:
+          type: array
+          items:
+            $ref: "#/components/schemas/PipelineEntryWithCandidate"
+        joining:
+          type: array
+          items:
+            $ref: "#/components/schemas/PipelineEntryWithCandidate"
+        post_joining:
+          type: array
+          items:
+            $ref: "#/components/schemas/PipelineEntryWithCandidate"
+        rejected:
+          type: array
+          items:
+            $ref: "#/components/schemas/PipelineEntryWithCandidate"
+        dropped:
+          type: array
+          items:
+            $ref: "#/components/schemas/PipelineEntryWithCandidate"
+      required: [sourced, screened, assessed, shortlisted, client_interview, offer, joining, post_joining, rejected, dropped]
+
+    UpdateStageRequest:
+      type: object
+      properties:
+        stage:
+          type: string
+          enum: [sourced, screened, assessed, shortlisted, client_interview, offer, joining, post_joining, rejected, dropped]
+        notes:
+          type: string
+      required: [stage]
+
+    # SCREENING ─────────────────────────────────────────────────────────────────
+    ScreeningCriteriaScore:
+      type: object
+      properties:
+        criterion:
+          type: string
+        score:
+          type: integer
+        notes:
+          type: string
+          nullable: true
+      required: [criterion, score]
+
+    Screening:
+      type: object
+      properties:
+        id:
+          type: string
+        pipelineId:
+          type: string
+        interviewerId:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+          nullable: true
+        conductedAt:
+          type: string
+          format: date-time
+          nullable: true
+        durationMin:
+          type: integer
+          nullable: true
+        mode:
+          type: string
+        overallScore:
+          type: integer
+          nullable: true
+        verdict:
+          type: string
+          enum: [shortlist, hold, reject]
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        criteriaScores:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScreeningCriteriaScore"
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, pipelineId, interviewerId, mode, createdAt, criteriaScores]
+
+    CreateScreeningRequest:
+      type: object
+      properties:
+        pipelineId:
+          type: string
+        interviewerId:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+        mode:
+          type: string
+        notes:
+          type: string
+        criteriaScores:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScreeningCriteriaScore"
+      required: [pipelineId, interviewerId]
+
+    SubmitVerdictRequest:
+      type: object
+      properties:
+        verdict:
+          type: string
+          enum: [shortlist, hold, reject]
+        overallScore:
+          type: integer
+        notes:
+          type: string
+      required: [verdict]
+
+    # ASSESSMENTS ───────────────────────────────────────────────────────────────
+    AssessmentQuestion:
+      type: object
+      properties:
+        id:
+          type: string
+        category:
+          type: string
+          enum: [aptitude, mathematics, english, logical_reasoning, computer_knowledge, general_knowledge, current_affairs, technical]
+        questionText:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        correctOption:
+          type: integer
+        difficulty:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, category, questionText, options, correctOption, difficulty, isActive, createdAt]
+
+    CreateQuestionRequest:
+      type: object
+      properties:
+        category:
+          type: string
+          enum: [aptitude, mathematics, english, logical_reasoning, computer_knowledge, general_knowledge, current_affairs, technical]
+        questionText:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+          minItems: 2
+        correctOption:
+          type: integer
+        difficulty:
+          type: string
+          enum: [easy, medium, hard]
+      required: [category, questionText, options, correctOption]
+
+    AssessmentTestWithQuestions:
+      type: object
+      properties:
+        id:
+          type: string
+        pipelineId:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        totalQuestions:
+          type: integer
+        correctAnswers:
+          type: integer
+        totalScore:
+          type: integer
+        maxScore:
+          type: integer
+        percentage:
+          type: integer
+        verdict:
+          type: string
+          nullable: true
+        questions:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssessmentQuestion"
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, pipelineId, totalQuestions, correctAnswers, totalScore, maxScore, percentage, questions, createdAt]
+
+    CreateAssessmentTestRequest:
+      type: object
+      properties:
+        pipelineId:
+          type: string
+        categories:
+          type: array
+          items:
+            type: string
+          description: Which categories to include
+        questionsPerCategory:
+          type: integer
+          default: 5
+      required: [pipelineId]
+
+    SubmitAssessmentRequest:
+      type: object
+      properties:
+        answers:
+          type: array
+          items:
+            type: object
+            properties:
+              questionId:
+                type: string
+              selectedOption:
+                type: integer
+            required: [questionId, selectedOption]
+      required: [answers]
+
+    # CLIENT INTERVIEWS ──────────────────────────────────────────────────────────
+    ClientInterviewWithCandidate:
+      type: object
+      properties:
+        id:
+          type: string
+        pipelineId:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+        mode:
+          type: string
+        round:
+          type: string
+        feedbackClient:
+          type: string
+          nullable: true
+        feedbackRecruiter:
+          type: string
+          nullable: true
+        verdict:
+          type: string
+          enum: [selected, on_hold, rejected, no_show]
+          nullable: true
+        conductedAt:
+          type: string
+          format: date-time
+          nullable: true
+        candidate:
+          $ref: "#/components/schemas/Candidate"
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, pipelineId, scheduledAt, mode, round, createdAt, candidate]
+
+    CreateClientInterviewRequest:
+      type: object
+      properties:
+        pipelineId:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+        mode:
+          type: string
+        round:
+          type: string
+        clientContactId:
+          type: string
+      required: [pipelineId, scheduledAt]
+
+    ClientInterviewFeedbackRequest:
+      type: object
+      properties:
+        feedbackClient:
+          type: string
+        feedbackRecruiter:
+          type: string
+        verdict:
+          type: string
+          enum: [selected, on_hold, rejected, no_show]
+        conductedAt:
+          type: string
+          format: date-time
+      required: [verdict]
+
+    # OFFERS ────────────────────────────────────────────────────────────────────
+    OfferWithCandidate:
+      type: object
+      properties:
+        id:
+          type: string
+        pipelineId:
+          type: string
+        offeredCtc:
+          type: integer
+          nullable: true
+        designation:
+          type: string
+          nullable: true
+        joiningDate:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum: [drafted, sent, accepted, rejected, revoked]
+        sentAt:
+          type: string
+          format: date-time
+          nullable: true
+        acceptedAt:
+          type: string
+          format: date-time
+          nullable: true
+        candidate:
+          $ref: "#/components/schemas/Candidate"
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, pipelineId, status, createdAt, candidate]
+
+    CreateOfferRequest:
+      type: object
+      properties:
+        pipelineId:
+          type: string
+        offeredCtc:
+          type: integer
+        designation:
+          type: string
+        joiningDate:
+          type: string
+          format: date-time
+      required: [pipelineId]
+
+    UpdateOfferStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [drafted, sent, accepted, rejected, revoked]
+      required: [status]
+
+    # JOINING ───────────────────────────────────────────────────────────────────
+    JoiningWithCandidate:
+      type: object
+      properties:
+        id:
+          type: string
+        pipelineId:
+          type: string
+        joiningDate:
+          type: string
+          format: date-time
+          nullable: true
+        actualJoinedAt:
+          type: string
+          format: date-time
+          nullable: true
+        noticePeriodDays:
+          type: integer
+          nullable: true
+        noticeStartDate:
+          type: string
+          format: date-time
+          nullable: true
+        bgvStatus:
+          type: string
+        docCollectionStatus:
+          type: string
+        laptopIssued:
+          type: boolean
+        idCardIssued:
+          type: boolean
+        candidate:
+          $ref: "#/components/schemas/Candidate"
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, pipelineId, bgvStatus, docCollectionStatus, laptopIssued, idCardIssued, createdAt, candidate]
+
+    CreateJoiningRequest:
+      type: object
+      properties:
+        pipelineId:
+          type: string
+        joiningDate:
+          type: string
+          format: date-time
+        noticePeriodDays:
+          type: integer
+        noticeStartDate:
+          type: string
+          format: date-time
+      required: [pipelineId]
+
+    UpdateJoiningRequest:
+      type: object
+      properties:
+        joiningDate:
+          type: string
+          format: date-time
+        actualJoinedAt:
+          type: string
+          format: date-time
+        bgvStatus:
+          type: string
+        docCollectionStatus:
+          type: string
+        laptopIssued:
+          type: boolean
+        idCardIssued:
+          type: boolean
+
+    PostJoiningFollowup:
+      type: object
+      properties:
+        id:
+          type: string
+        pipelineId:
+          type: string
+        checkType:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+          nullable: true
+        conductedAt:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        retentionStatus:
+          type: string
+          enum: [retained, resigned, terminated, unknown]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, pipelineId, checkType, retentionStatus, createdAt]
+
+    CreateFollowupRequest:
+      type: object
+      properties:
+        checkType:
+          type: string
+          enum: ["30_day", "60_day", "90_day"]
+        scheduledAt:
+          type: string
+          format: date-time
+        notes:
+          type: string
+        retentionStatus:
+          type: string
+          enum: [retained, resigned, terminated, unknown]
+      required: [checkType]
+
+    # DASHBOARD ─────────────────────────────────────────────────────────────────
+    DashboardSummary:
+      type: object
+      properties:
+        openRequirements:
+          type: integer
+        candidatesInPipeline:
+          type: integer
+        interviewsThisWeek:
+          type: integer
+        offersPending:
+          type: integer
+        joiningToday:
+          type: integer
+        avgTimeTofillDays:
+          type: integer
+      required: [openRequirements, candidatesInPipeline, interviewsThisWeek, offersPending, joiningToday, avgTimeTofillDays]
+
+    FunnelStage:
+      type: object
+      properties:
+        stage:
+          type: string
+        label:
+          type: string
+        count:
+          type: integer
+        pct:
+          type: integer
+      required: [stage, label, count, pct]
+
+    # NOTIFICATIONS ─────────────────────────────────────────────────────────────
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+        recipientId:
+          type: string
+        type:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        entityType:
+          type: string
+          nullable: true
+        entityId:
+          type: string
+          nullable: true
+        isRead:
+          type: boolean
+        scheduledFor:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, recipientId, type, title, body, isRead, createdAt]

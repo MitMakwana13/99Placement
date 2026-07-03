@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "talentlab"
+version = "1.0.0"
+id = "artifacts/talentlab"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20397
+
+[services.development]
+run = "pnpm --filter @workspace/talentlab run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/talentlab", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/talentlab/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20397"
+BASE_PATH = "/"

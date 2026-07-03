@@ -1,0 +1,334 @@
+Since you've already given Replit your UI and GitHub repo (https://99-placement.vercel.app) but haven't given it the hiring process PDF yet, don't ask it to blindly build features. Instead, first give it the business workflow so it can redesign the backend and database correctly.
+
+The PDF defines the complete hiring pipeline: Requirement → Candidate Sourcing → Screening Interview → Assessment Test → Client Interview → Offer → Joining → Post Joining. 
+
+Send Replit this prompt:
+
+
+---
+
+Prompt
+
+You already have access to my frontend UI and GitHub repository.
+
+Now I want you to redesign the backend and database according to this recruitment business workflow. Do not change the UI unless absolutely necessary. Instead, connect the existing UI to a scalable backend.
+
+Your tasks:
+
+Phase 1 - Analyze
+
+Analyze every page in my current project.
+
+Identify missing pages and missing backend functionality.
+
+Create a document explaining:
+
+Existing features
+
+Missing features
+
+Database entities needed
+
+API endpoints required
+
+
+
+Do not write code yet.
+
+
+---
+
+Phase 2 - Database Design
+
+Design a production-ready PostgreSQL database with proper relationships.
+
+Entities should include:
+
+Companies (Clients)
+
+Company Contacts
+
+Job Requirements
+
+Candidates
+
+Candidate Documents
+
+Candidate Education
+
+Candidate Experience
+
+Candidate Skills
+
+Screening Interviews
+
+Assessment Tests
+
+Assessment Results
+
+Interview Schedule
+
+Client Interviews
+
+Feedback
+
+Salary Negotiation
+
+Offer Letters
+
+Joining Status
+
+Post Joining Follow-up
+
+Employees (Recruiters)
+
+Activity Logs
+
+Notifications
+
+
+Use UUIDs, foreign keys, timestamps, soft delete, indexing, and proper normalization.
+
+
+---
+
+Phase 3 - Backend
+
+Build REST APIs for every module.
+
+Authentication:
+
+Admin
+
+Recruiter
+
+HR
+
+Client
+
+
+Role-based permissions.
+
+Validation on every endpoint.
+
+
+---
+
+Phase 4 - Recruitment Workflow
+
+Implement this workflow exactly:
+
+Requirement Received
+
+↓
+
+Candidate Sourcing
+
+↓
+
+Screening Interview
+
+↓
+
+Assessment Test
+
+↓
+
+Generate Score
+
+↓
+
+Candidate Shortlist
+
+↓
+
+Client Interview
+
+↓
+
+Interview Feedback
+
+↓
+
+Salary Negotiation
+
+↓
+
+Offer Letter
+
+↓
+
+Pre Joining Follow-up
+
+↓
+
+Joined
+
+↓
+
+Post Joining Support
+
+The status should automatically update after every completed stage.
+
+
+---
+
+Phase 5 - Candidate Module
+
+Each candidate should have:
+
+Personal Details
+
+Resume
+
+Skills
+
+Education
+
+Experience
+
+Notes
+
+Documents
+
+Interview History
+
+Assessment Score
+
+Current Status
+
+Timeline
+
+
+
+---
+
+Phase 6 - Assessment Module
+
+Support custom tests including:
+
+Aptitude
+
+Mathematics
+
+English
+
+Logical Reasoning
+
+Computer Knowledge
+
+General Knowledge
+
+Current Affairs
+
+Technical Questions
+
+
+Automatically calculate percentage and generate a scorecard.
+
+
+---
+
+Phase 7 - Dashboard
+
+Create dashboards for:
+
+Admin
+
+Recruiter
+
+Client
+
+Show:
+
+Open Jobs
+
+Candidates in Pipeline
+
+Today's Interviews
+
+Offers Pending
+
+Joining Today
+
+Monthly Placements
+
+Recruiter Performance
+
+
+
+---
+
+Phase 8 - Notifications
+
+Automatic reminders for:
+
+Upcoming interviews
+
+Pending feedback
+
+Offer acceptance
+
+Notice period follow-up
+
+Joining date
+
+
+
+---
+
+Phase 9 - Code Quality
+
+Use clean architecture.
+
+Separate:
+
+Controllers
+
+Services
+
+Database
+
+Middleware
+
+Validation
+
+Utilities
+
+
+Write reusable code only.
+
+
+---
+
+IMPORTANT
+
+Do NOT start coding immediately.
+
+First give me:
+
+1. Complete feature analysis.
+
+
+2. Missing modules.
+
+
+3. Database ERD.
+
+
+4. API list.
+
+
+5. Folder structure.
+
+
+6. Development roadmap.
+
+
+
+Wait for my approval before writing code.
+
+
+---
+
+This approach will prevent Replit from making architectural mistakes. Once it produces the analysis and architecture, you can have it implement the project module by module instead of trying to build everything at once.

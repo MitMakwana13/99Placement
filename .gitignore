@@ -47,3 +47,7 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+.env
+archive_old_root_src/
+*.zip
+.agents/
