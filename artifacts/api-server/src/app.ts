@@ -1,4 +1,5 @@
 import express, { type Express } from "express";
+import path from "path";
 import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
@@ -90,6 +91,9 @@ const authRateLimiter = rateLimit({
   },
 });
 app.use("/api/v1/auth", authRateLimiter);
+
+// 7.8 Local File serving
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // 8. Core Application Router (Version 1)
 app.use("/api/v1", router);

@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { candidatesTable, candidatePipelineTable } from "@workspace/db/schema";
 import { eq, and, isNull, ilike, or } from "drizzle-orm";
 import { requireAuth } from "../../middleware/auth";
+import { invalidateCache } from "../../middleware/cache.middleware";
 
 const router: IRouter = Router();
 
@@ -58,6 +59,10 @@ router.post("/candidates", requireAuth, async (req, res): Promise<void> => {
     })
     .returning();
 
+  invalidateCache("dashboard", tenantId).catch((err) => {
+    console.error("Failed to invalidate dashboard cache on candidate creation:", err);
+  });
+
   res.status(201).json(candidate);
 });
 
@@ -90,12 +95,24 @@ router.patch("/candidates/:id", requireAuth, async (req, res): Promise<void> => 
     res.status(404).json({ error: "Candidate not found" });
     return;
   }
+
+  const tenantId = req.user?.tenantId || "global";
+  invalidateCache("dashboard", tenantId).catch((err) => {
+    console.error("Failed to invalidate dashboard cache on candidate update:", err);
+  });
+
   res.json(updated);
 });
 
 router.delete("/candidates/:id", requireAuth, async (req, res): Promise<void> => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   await db.update(candidatesTable).set({ deletedAt: new Date() }).where(eq(candidatesTable.id, id));
+
+  const tenantId = req.user?.tenantId || "global";
+  invalidateCache("dashboard", tenantId).catch((err) => {
+    console.error("Failed to invalidate dashboard cache on candidate delete:", err);
+  });
+
   res.sendStatus(204);
 });
 
@@ -115,6 +132,10 @@ router.post("/candidates/:id/apply/:requirementId", requireAuth, async (req, res
       assignedRecruiterId: req.employee?.employeeId,
     })
     .returning();
+
+  invalidateCache("dashboard", tenantId).catch((err) => {
+    console.error("Failed to invalidate dashboard cache on candidate apply:", err);
+  });
 
   res.status(201).json(entry);
 });

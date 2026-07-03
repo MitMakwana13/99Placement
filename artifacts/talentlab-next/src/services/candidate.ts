@@ -31,4 +31,16 @@ export const candidateService = {
   delete: async (id: string): Promise<void> => {
     return apiClient.delete<void>(`candidates/${id}`);
   },
+
+  addNote: async (id: string, content: string, isPrivate: boolean = false): Promise<any> => {
+    return apiClient.post<any>(`candidates/${id}/notes`, { content, isPrivate });
+  },
+
+  addDocument: async (id: string, doc: { name: string; documentType: string; fileUrl: string; fileKey?: string; fileSize?: number }): Promise<any> => {
+    return apiClient.post<any>(`candidates/${id}/documents`, doc);
+  },
+
+  getTimeline: async (id: string): Promise<any[]> => {
+    return apiClient.get<any[]>(`candidates/${id}/timeline`);
+  },
 };

@@ -101,7 +101,7 @@ export default function DashboardPage() {
   // Metrics states
   const [summary, setSummary] = useState(defaultSummary);
   const [funnel, setFunnel] = useState(defaultFunnel);
-  const [recentSubmissions] = useState(defaultRecentSubmissions);
+  const [recentSubmissions, setRecentSubmissions] = useState<any[]>(defaultRecentSubmissions);
   const [isFetching, setIsFetching] = useState(true);
 
   useEffect(() => {
@@ -116,12 +116,14 @@ export default function DashboardPage() {
     async function loadDashboardData() {
       setIsFetching(true);
       try {
-        const [summaryData, funnelData] = await Promise.all([
+        const [summaryData, funnelData, submissionsData] = await Promise.all([
           apiClient.get<any>("dashboard/summary"),
           apiClient.get<any>("dashboard/pipeline-funnel"),
+          apiClient.get<any>("dashboard/recent-submissions"),
         ]);
         if (summaryData) setSummary(summaryData);
         if (funnelData && Array.isArray(funnelData)) setFunnel(funnelData);
+        if (submissionsData && Array.isArray(submissionsData)) setRecentSubmissions(submissionsData);
       } catch (err) {
         console.warn("Could not load real dashboard data, falling back to cached mock metrics.", err);
       } finally {

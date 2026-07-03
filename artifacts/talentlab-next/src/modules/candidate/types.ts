@@ -16,6 +16,8 @@ export interface Candidate {
   createdAt: string;
   updatedAt: string | null;
   deletedAt: string | null;
+  notes?: any[];
+  documents?: any[];
 }
 
 export interface CandidateFilters {

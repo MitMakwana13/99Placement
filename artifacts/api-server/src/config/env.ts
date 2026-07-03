@@ -23,6 +23,13 @@ const envSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
+  STORAGE_PROVIDER: z.enum(["local", "s3"]).default("local"),
+  S3_ENDPOINT: z.string().optional(),
+  S3_REGION: z.string().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
+  S3_BUCKET_NAME: z.string().optional(),
+  S3_FORCE_PATH_STYLE: z.preprocess((val) => val === "true" || val === true, z.boolean()).default(false),
 });
 
 // Safe parse variables

@@ -1,10 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { useCandidate } from "@/modules/candidate/hooks/useCandidate";
 import { useUpdateCandidate } from "@/modules/candidate/hooks/useUpdateCandidate";
 import { useDeleteCandidate } from "@/modules/candidate/hooks/useDeleteCandidate";
+import { candidateService } from "@/services/candidate";
+import { apiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
@@ -41,31 +44,75 @@ export default function CandidateDetailPage() {
   const updateMutation = useUpdateCandidate();
   const deleteMutation = useDeleteCandidate();
 
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Tab controls
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  // Notes state simulation
-  const [notes, setNotes] = useState<{ id: string; author: string; text: string; date: string }[]>([
-    { id: "1", author: "Recruiter Alpha", text: "Excellent communication skills. High interest in the role.", date: "2 hours ago" },
-    { id: "2", author: "Technical Interviewer", text: "Strong coding fundamentals. Good understanding of system design.", date: "1 day ago" },
-  ]);
   const [newNoteText, setNewNoteText] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Mutation to add notes via backend
+  const addNoteMutation = useMutation({
+    mutationFn: async (text: string) => {
+      return candidateService.addNote(id, text, false);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["candidate", id] });
+      setNewNoteText("");
+      toast("Note added successfully!", "success");
+    },
+    onError: (err: any) => {
+      toast(err.message || "Failed to add note.", "error");
+    },
+  });
+
+  // Mutation to upload files and store document meta
+  const uploadDocMutation = useMutation({
+    mutationFn: async (file: File) => {
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const uploadRes = await apiClient.post<any>("upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      const uploadedFile = uploadRes.data;
+
+      return candidateService.addDocument(id, {
+        name: uploadedFile.name,
+        documentType: "RESUME",
+        fileUrl: uploadedFile.url,
+        fileKey: uploadedFile.key,
+        fileSize: uploadedFile.size,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["candidate", id] });
+      toast("Document attached successfully!", "success");
+    },
+    onError: (err: any) => {
+      toast(err.message || "Failed to upload document.", "error");
+    },
+    onSettled: () => {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    },
+  });
 
   const handleAddNote = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newNoteText.trim()) return;
-    setNotes((prev) => [
-      {
-        id: Math.random().toString(),
-        author: "You (Recruiter)",
-        text: newNoteText,
-        date: "Just now",
-      },
-      ...prev,
-    ]);
-    setNewNoteText("");
-    toast("Note added successfully!", "success");
+    addNoteMutation.mutate(newNoteText);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    uploadDocMutation.mutate(file);
   };
 
   const handleEditSubmit = async (values: any) => {
@@ -415,25 +462,40 @@ export default function CandidateDetailPage() {
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewNoteText(e.target.value)}
                     placeholder="E.g. Candidate showed strong knowledge of React Query..."
                     className="flex-1"
+                    disabled={addNoteMutation.isPending}
                   />
-                  <Button type="submit">
-                    Add Note
+                  <Button type="submit" disabled={addNoteMutation.isPending}>
+                    {addNoteMutation.isPending ? "Adding..." : "Add Note"}
                   </Button>
                 </form>
 
                 {/* Notes List */}
                 <div className="divide-y divide-border/40">
-                  {notes.map((note) => (
-                    <div key={note.id} className="py-4 space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-foreground">{note.author}</span>
-                        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                          <Clock className="h-3 w-3" /> {note.date}
-                        </span>
+                  {(candidate.notes || []).length > 0 ? (
+                    (candidate.notes || []).map((note: any) => (
+                      <div key={note.id} className="py-4 space-y-1">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-bold text-foreground">
+                            {note.author?.name || "System Recruiter"}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {new Date(note.createdAt).toLocaleString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">{note.content}</p>
                       </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed">{note.text}</p>
+                    ))
+                  ) : (
+                    <div className="py-4 text-center text-xs text-muted-foreground">
+                      No internal notes recorded yet.
                     </div>
-                  ))}
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -446,25 +508,60 @@ export default function CandidateDetailPage() {
                 <CardDescription>Access recruiter files and uploaded resumes</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-border rounded-2xl bg-muted/10 hover:bg-muted/20 transition-all cursor-pointer">
-                  <FileText className="h-8 w-8 text-muted-foreground/60 mb-2" />
-                  <span className="text-xs font-bold text-foreground">Upload Candidate Attachment</span>
-                  <span className="text-[10px] text-muted-foreground mt-1">PDF, DOCX, or RTF (max 5MB)</span>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: "none" }}
+                  onChange={handleFileUpload}
+                  accept=".pdf,.doc,.docx,.rtf,image/jpeg,image/png"
+                />
+
+                <div
+                  onClick={() => !isUploading && fileInputRef.current?.click()}
+                  className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-border rounded-2xl bg-muted/10 hover:bg-muted/20 transition-all cursor-pointer relative"
+                >
+                  {isUploading ? (
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent mb-2" />
+                      <span className="text-xs font-bold text-foreground">Uploading file...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <FileText className="h-8 w-8 text-muted-foreground/60 mb-2" />
+                      <span className="text-xs font-bold text-foreground">Upload Candidate Attachment</span>
+                      <span className="text-[10px] text-muted-foreground mt-1">PDF, DOCX, or RTF (max 5MB)</span>
+                    </>
+                  )}
                 </div>
 
                 <div className="divide-y divide-border/40">
-                  <div className="py-3 flex justify-between items-center text-xs">
-                    <div className="flex items-center gap-2.5">
-                      <FileText className="h-4.5 w-4.5 text-pastel-pink" />
-                      <div>
-                        <p className="font-semibold text-foreground">Resume_{candidate.name.replace(" ", "_")}.pdf</p>
-                        <p className="text-[10px] text-muted-foreground">PDF File · 142 KB</p>
+                  {(candidate.documents || []).length > 0 ? (
+                    (candidate.documents || []).map((doc: any) => (
+                      <div key={doc.id} className="py-3 flex justify-between items-center text-xs">
+                        <div className="flex items-center gap-2.5">
+                          <FileText className="h-4.5 w-4.5 text-primary" />
+                          <div>
+                            <p className="font-semibold text-foreground">{doc.name}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {doc.documentType} · {doc.fileSize ? `${(doc.fileSize / 1024).toFixed(1)} KB` : "Unknown size"}
+                            </p>
+                          </div>
+                        </div>
+                        <a
+                          href={doc.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center rounded-xl text-xs font-bold border border-border bg-background hover:bg-accent hover:text-accent-foreground h-8 px-3"
+                        >
+                          View / Download
+                        </a>
                       </div>
+                    ))
+                  ) : (
+                    <div className="py-4 text-center text-xs text-muted-foreground">
+                      No documents uploaded yet.
                     </div>
-                    <Button variant="outline" size="sm">
-                      Download
-                    </Button>
-                  </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

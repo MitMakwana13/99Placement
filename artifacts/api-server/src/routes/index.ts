@@ -16,6 +16,7 @@ import offersRouter from "./offers";
 import joiningRouter from "./joining";
 import dashboardRouter from "./dashboard";
 import notificationsRouter from "./notifications";
+import uploadRouter from "./upload.routes";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(offersRouter);
 router.use(joiningRouter);
 router.use(dashboardRouter);
 router.use(notificationsRouter);
+router.use(uploadRouter);
 
 export default router;

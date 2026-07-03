@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { candidatePipelineTable, candidatesTable, activityLogsTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../../middleware/auth";
+import { invalidateCache } from "../../middleware/cache.middleware";
 
 const router: IRouter = Router();
 
@@ -103,6 +104,11 @@ router.patch("/pipeline/:id/stage", requireAuth, async (req, res): Promise<void>
     action: `stage_changed_to_${stage}`,
     performedById: req.employee?.employeeId,
     metadata: { notes },
+  });
+
+  const tenant = tenantId || req.user?.tenantId || "global";
+  invalidateCache("dashboard", tenant).catch((err) => {
+    console.error("Failed to invalidate dashboard cache on stage update:", err);
   });
 
   res.json(entry);

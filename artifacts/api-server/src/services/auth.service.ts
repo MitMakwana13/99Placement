@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { createHash } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { prisma, User, Tenant, Role } from "@workspace/db-prisma";
 import { LoginInput, RegisterTenantInput } from "@workspace/shared-schemas";
 import { ChangePasswordInput, UpdateProfileInput } from "../validators/auth.validator";
@@ -10,6 +10,9 @@ import { SessionRepository } from "../repositories/session.repository";
 import { RbacService } from "./rbac.service";
 import { AppError } from "../utils/app-error";
 import logger from "../lib/logger";
+import { redisCache } from "../config/redis";
+import { EmailService } from "./email.service";
+import { env } from "../config/env";
 
 export class AuthService {
   /**
@@ -85,6 +88,16 @@ export class AuthService {
     });
 
     logger.info({ tenantId: result.tenant.id, userId: result.user.id }, "Tenant registered successfully");
+
+    // Generate onboarding email verification token (ephemeral, 24h TTL)
+    const verifyToken = randomUUID();
+    await redisCache.set(`email-verify-token:${verifyToken}`, result.user.id, 24 * 3600);
+    const clientUrl = env.CLIENT_URL || "http://localhost:3000";
+    const verifyUrl = `${clientUrl}/verify-email?token=${verifyToken}`;
+    
+    EmailService.sendEmailVerificationEmail(result.user.email, verifyUrl, result.user.name).catch((err) => {
+      logger.error({ err: err.message }, "Failed to send onboarding email verification");
+    });
 
     return {
       tenantId: result.tenant.id,
@@ -296,53 +309,93 @@ export class AuthService {
   }
 
   /**
-   * Simulates/Mocks a request to send a recovery link to the user
+   * Generates a recovery token, stores it in Redis (1h expiration), and sends a reset email to the user
    */
   static async forgotPassword(email: string): Promise<void> {
     const user = await UserRepository.findByEmail(email);
-    // Protect against email enumeration by returning a generic successful log signature
+    // Protect against email enumeration by returning a generic successful message response to callers
     if (!user) {
       logger.info({ email }, "Forgot password request processed for non-existing target user.");
       return;
     }
 
-    // In production, generate a cryptographically secure token, write it to memory cache (Redis), and email the user.
-    logger.info({ userId: user.id, email }, "Reset password instruction link generated.");
+    const token = randomUUID();
+    // Cache token mapping to User ID in Redis for 1 hour
+    await redisCache.set(`reset-token:${token}`, user.id, 3600);
+
+    const clientUrl = env.CLIENT_URL || "http://localhost:3000";
+    const resetUrl = `${clientUrl}/reset-password?token=${token}`;
+
+    EmailService.sendPasswordResetEmail(user.email, resetUrl, user.name).catch((err) => {
+      logger.error({ err: err.message, userId: user.id }, "Failed to send password reset email");
+    });
+
+    logger.info({ userId: user.id, email }, "Reset password instruction token generated and dispatched.");
   }
 
   /**
-   * Simulates/Mocks resetting password using a recovery token
+   * Validates recovery token from Redis, hashes new password, updates user, and purges all active sessions
    */
   static async resetPassword(token: string, newPassword: string): Promise<void> {
-    // In production, we'd verify the recovery token in Redis or SQL table. Here we mock a successful verify loop.
-    if (token === "invalid-token" || token.length < 10) {
+    if (!token || token.length < 10) {
+      throw AppError.badRequest("Invalid password reset token format.", "INVALID_RESET_TOKEN");
+    }
+
+    const userId = await redisCache.get(`reset-token:${token}`);
+    if (!userId) {
       throw AppError.badRequest("Invalid or expired password reset recovery token.", "INVALID_RESET_TOKEN");
     }
 
-    // Locate the target user (e.g. using a mock tenant search or using standard parameters)
-    // For demonstration, let's find the first tenant admin user
-    const firstAdmin = await prisma.user.findFirst({
-      where: { systemRole: "TENANT_ADMIN" },
-    });
-
-    if (!firstAdmin) {
-      throw AppError.notFound("System admin user could not be located to perform reset.", "USER_NOT_FOUND");
+    const user = await UserRepository.findById(userId);
+    if (!user) {
+      throw AppError.notFound("User account not found.", "USER_NOT_FOUND");
     }
 
     const salt = await bcrypt.genSalt(12);
     const passwordHash = await bcrypt.hash(newPassword, salt);
 
-    await UserRepository.update(firstAdmin.id, { passwordHash });
-    logger.info({ userId: firstAdmin.id }, "Successfully reset password using recovery token.");
+    await prisma.$transaction(async (tx) => {
+      // 1. Update password
+      await tx.user.update({
+        where: { id: userId },
+        data: { passwordHash },
+      });
+      // 2. Revoke all active device sessions for this user (force security relogin)
+      await tx.userSession.deleteMany({
+        where: { userId },
+      });
+    });
+
+    // Clean up reset token from cache
+    await redisCache.del(`reset-token:${token}`);
+
+    logger.info({ userId }, "Successfully reset password and cleared active sessions.");
   }
 
   /**
-   * Simulates/Mocks a verification check
+   * Verifies email token from Redis and updates user active/verified status in the database
    */
   static async verifyEmail(token: string): Promise<void> {
-    if (token === "invalid-token" || token.length < 10) {
+    if (!token || token.length < 10) {
+      throw AppError.badRequest("Invalid email verification token format.", "INVALID_VERIFY_TOKEN");
+    }
+
+    const userId = await redisCache.get(`email-verify-token:${token}`);
+    if (!userId) {
       throw AppError.badRequest("Invalid or expired email verification token.", "INVALID_VERIFY_TOKEN");
     }
-    logger.info({ token }, "Email address successfully verified.");
+
+    const user = await UserRepository.findById(userId);
+    if (!user) {
+      throw AppError.notFound("User account not found.", "USER_NOT_FOUND");
+    }
+
+    // Set user to active (verified)
+    await UserRepository.update(userId, { isActive: true });
+
+    // Clean up verification token from cache
+    await redisCache.del(`email-verify-token:${token}`);
+
+    logger.info({ userId }, "Email address successfully verified via token.");
   }
 }
