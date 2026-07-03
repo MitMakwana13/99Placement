@@ -34,5 +34,8 @@ export const requireTenant: RequestHandler = (req: Request, _res: Response, next
   }
 
   req.tenantId = tenantId;
+  if (req.context) {
+    req.context.tenantId = tenantId;
+  }
   next();
 };

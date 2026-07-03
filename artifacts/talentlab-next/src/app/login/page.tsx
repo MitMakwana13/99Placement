@@ -36,7 +36,7 @@ export default function AuthPage() {
     setErrorMsg(null);
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:3001/api/auth/login", {
+      const res = await fetch("http://localhost:3001/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -59,7 +59,7 @@ export default function AuthPage() {
     setSuccessMsg(null);
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:3001/api/auth/register-tenant", {
+      const res = await fetch("http://localhost:3001/api/v1/auth/register-tenant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),

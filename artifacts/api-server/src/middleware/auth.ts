@@ -41,6 +41,13 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     const payload = jwt.verify(token, JWT_SECRET!) as JwtPayload;
     req.user = payload;
     
+    // Populate request context parameters
+    if (req.context) {
+      req.context.userId = payload.userId;
+      req.context.role = payload.role;
+      req.context.tenantId = payload.tenantId;
+    }
+    
     // Maintain backward compatibility with legacy Drizzle routes
     req.employee = {
       employeeId: payload.userId,

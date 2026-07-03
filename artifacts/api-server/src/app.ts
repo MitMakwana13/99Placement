@@ -72,10 +72,14 @@ const globalRateLimiter = rateLimit({
     },
   },
 });
-app.use("/api", globalRateLimiter);
+app.use("/api/v1", globalRateLimiter);
 
-// 8. Core Application Router
-app.use("/api", router);
+// 8. Core Application Router (Version 1)
+app.use("/api/v1", router);
+
+// Global health endpoint check for orchestrators
+import healthRouter from "./routes/health";
+app.use(healthRouter);
 
 // 9. Unmatched Route Fallback Interceptor
 app.use(notFoundHandler);
