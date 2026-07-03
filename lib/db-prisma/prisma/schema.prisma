@@ -1,0 +1,490 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPER_ADMIN
+  TENANT_ADMIN
+  RECRUITER
+  HR
+  CLIENT_USER
+  CANDIDATE
+}
+
+enum UrgencyLevel {
+  CRITICAL
+  HIGH
+  NORMAL
+}
+
+enum JobStatus {
+  OPEN
+  ON_HOLD
+  CLOSED
+  CANCELLED
+}
+
+enum CandidateSource {
+  REFERRAL
+  PORTAL
+  SOCIAL
+  INTERNAL
+  DIRECT
+}
+
+enum PipelineStage {
+  SOURCED
+  SCREENED
+  ASSESSED
+  SHORTLISTED
+  CLIENT_INTERVIEW
+  OFFER
+  JOINING
+  POST_JOINING
+  REJECTED
+  DROPPED
+}
+
+enum Verdict {
+  SHORTLIST
+  HOLD
+  REJECT
+}
+
+enum AssessmentCategory {
+  APTITUDE
+  MATHEMATICS
+  ENGLISH
+  LOGICAL_REASONING
+  COMPUTER_KNOWLEDGE
+  GENERAL_KNOWLEDGE
+  CURRENT_AFFAIRS
+  TECHNICAL
+}
+
+enum InterviewVerdict {
+  SELECTED
+  ON_HOLD
+  REJECTED
+  NO_SHOW
+}
+
+enum OfferStatus {
+  DRAFTED
+  SENT
+  ACCEPTED
+  REJECTED
+  REVOKED
+}
+
+enum RetentionStatus {
+  RETAINED
+  RESIGNED
+  TERMINATED
+  UNKNOWN
+}
+
+model Tenant {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  slug      String    @unique
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  users                  User[]
+  companies              Company[]
+  companyContacts        CompanyContact[]
+  candidates             Candidate[]
+  jobs                   Job[]
+  candidatePipelines     CandidatePipeline[]
+  screeningInterviews    ScreeningInterview[]
+  assessmentTests        AssessmentTest[]
+  clientInterviews       ClientInterview[]
+  salaryNegotiations     SalaryNegotiation[]
+  offerLetters           OfferLetter[]
+  joiningStatuses        JoiningStatus[]
+  postJoiningFollowups   PostJoiningFollowup[]
+  activityLogs           ActivityLog[]
+  notifications          Notification[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  companyId    String?   @map("company_id") @db.Uuid
+  name         String
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         Role      @default(RECRUITER)
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  tenant               Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company              Company?             @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  recruitedJobs        Job[]                @relation("RecruiterJobs")
+  assignedPipelines    CandidatePipeline[]  @relation("AssignedRecruiter")
+  conductedAssessments AssessmentTest[]     @relation("ConductedBy")
+  activityLogs         ActivityLog[]        @relation("PerformedBy")
+  notifications        Notification[]       @relation("Recipient")
+
+  @@map("users")
+}
+
+model Company {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  name      String
+  industry  String?
+  website   String?
+  gstin     String?
+  address   String?
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contacts CompanyContact[]
+  users    User[]
+  jobs     Job[]
+
+  @@map("companies")
+}
+
+model CompanyContact {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  name        String
+  email       String?
+  phone       String?
+  designation String?
+  isPrimary   Boolean  @default(false) @map("is_primary")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientInterviews ClientInterview[]
+
+  @@map("company_contacts")
+}
+
+model Candidate {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String          @map("tenant_id") @db.Uuid
+  name            String
+  initials        String?
+  email           String          @unique
+  phone           String?
+  currentRole     String?         @map("current_role")
+  experienceYears Int?            @map("experience_years")
+  location        String?
+  skills          String[]
+  source          CandidateSource @default(PORTAL)
+  currentCtc      Int?            @map("current_ctc")
+  expectedCtc     Int?            @map("expected_ctc")
+  noticeDays      Int?            @map("notice_days")
+  summary         String?
+  resumeUrl       String?         @map("resume_url")
+  photoUrl        String?         @map("photo_url")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  deletedAt       DateTime?       @map("deleted_at")
+
+  tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pipelines CandidatePipeline[]
+
+  @@map("candidates")
+}
+
+model Job {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String       @map("tenant_id") @db.Uuid
+  companyId     String       @map("company_id") @db.Uuid
+  recruiterId   String?      @map("recruiter_id") @db.Uuid
+  title         String
+  location      String
+  jobType       String       @default("full_time") @map("job_type")
+  urgency       UrgencyLevel @default(NORMAL)
+  salaryBand    String?      @map("salary_band")
+  jdText        String?      @map("jd_text")
+  openingsCount Int          @default(1) @map("openings_count")
+  status        JobStatus    @default(OPEN)
+  deadline      DateTime?
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  deletedAt     DateTime?    @map("deleted_at")
+
+  tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company   Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  recruiter User?               @relation("RecruiterJobs", fields: [recruiterId], references: [id], onDelete: SetNull)
+  pipelines CandidatePipeline[]
+
+  @@map("jobs")
+}
+
+model CandidatePipeline {
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId           String        @map("tenant_id") @db.Uuid
+  candidateId        String        @map("candidate_id") @db.Uuid
+  jobId              String        @map("job_id") @db.Uuid
+  stage              PipelineStage @default(SOURCED)
+  assignedRecruiterId String?       @map("assigned_recruiter_id") @db.Uuid
+  stageUpdatedAt     DateTime      @default(now()) @map("stage_updated_at")
+  notes              String?
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  tenant             Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  candidate          Candidate            @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  job                Job                  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  assignedRecruiter  User?                @relation("AssignedRecruiter", fields: [assignedRecruiterId], references: [id], onDelete: SetNull)
+  screeningInterviews ScreeningInterview[]
+  assessmentTests    AssessmentTest[]
+  clientInterviews   ClientInterview[]
+  salaryNegotiations SalaryNegotiation[]
+  offerLetters       OfferLetter[]
+  joiningStatuses    JoiningStatus[]
+  postJoiningFollowups PostJoiningFollowup[]
+
+  @@map("candidate_pipeline")
+}
+
+model ScreeningInterview {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  pipelineId   String    @map("pipeline_id") @db.Uuid
+  interviewerId String    @map("interviewer_id") @db.Uuid
+  scheduledAt  DateTime? @map("scheduled_at")
+  conductedAt  DateTime? @map("conducted_at")
+  durationMin  Int?      @map("duration_min")
+  mode         String    @default("phone")
+  overallScore Int?      @map("overall_score")
+  verdict      Verdict?
+  notes        String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  tenant          Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pipeline        CandidatePipeline         @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  criteriaScores  ScreeningCriteriaScore[]
+
+  @@map("screening_interviews")
+}
+
+model ScreeningCriteriaScore {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  screeningId String   @map("screening_id") @db.Uuid
+  criterion   String
+  score       Int      @default(0)
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  screening   ScreeningInterview @relation(fields: [screeningId], references: [id], onDelete: Cascade)
+
+  @@map("screening_criteria_scores")
+}
+
+model AssessmentQuestion {
+  id           String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category     AssessmentCategory
+  questionText String             @map("question_text")
+  options      String[]
+  correctOption Int               @map("correct_option")
+  difficulty   String             @default("medium")
+  isActive     Boolean            @default(true) @map("is_active")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+
+  results      AssessmentResult[]
+
+  @@map("assessment_questions")
+}
+
+model AssessmentTest {
+  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String            @map("tenant_id") @db.Uuid
+  pipelineId     String            @map("pipeline_id") @db.Uuid
+  conductedById  String?           @map("conducted_by_id") @db.Uuid
+  scheduledAt    DateTime?         @map("scheduled_at")
+  startedAt      DateTime?         @map("started_at")
+  completedAt    DateTime?         @map("completed_at")
+  totalQuestions Int               @default(0) @map("total_questions")
+  correctAnswers Int               @default(0) @map("correct_answers")
+  totalScore     Int               @default(0) @map("total_score")
+  maxScore       Int               @default(0) @map("max_score")
+  percentage     Int               @default(0)
+  verdict        String?
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  tenant       Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pipeline     CandidatePipeline  @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  conductedBy  User?              @relation("ConductedBy", fields: [conductedById], references: [id], onDelete: SetNull)
+  results      AssessmentResult[]
+
+  @@map("assessment_tests")
+}
+
+model AssessmentResult {
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  testId         String             @map("test_id") @db.Uuid
+  questionId     String             @map("question_id") @db.Uuid
+  category       AssessmentCategory
+  selectedOption Int?               @map("selected_option")
+  isCorrect      Boolean            @default(false) @map("is_correct")
+  createdAt      DateTime           @default(now()) @map("created_at")
+
+  test           AssessmentTest     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  question       AssessmentQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("assessment_results")
+}
+
+model ClientInterview {
+  id                    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId              String            @map("tenant_id") @db.Uuid
+  pipelineId            String            @map("pipeline_id") @db.Uuid
+  clientContactId       String?           @map("client_contact_id") @db.Uuid
+  interviewerEmployeeId String?           @map("interviewer_employee_id") @db.Uuid
+  scheduledAt           DateTime          @map("scheduled_at")
+  mode                  String            @default("video")
+  round                 String            @default("1")
+  feedbackClient        String?           @map("feedback_client")
+  feedbackRecruiter     String?           @map("feedback_recruiter")
+  verdict               InterviewVerdict?
+  conductedAt           DateTime?         @map("conducted_at")
+  createdAt             DateTime          @default(now()) @map("created_at")
+  updatedAt             DateTime          @updatedAt @map("updated_at")
+
+  tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pipeline      CandidatePipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  clientContact CompanyContact?   @relation(fields: [clientContactId], references: [id], onDelete: SetNull)
+
+  @@map("client_interviews")
+}
+
+model SalaryNegotiation {
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String            @map("tenant_id") @db.Uuid
+  pipelineId       String            @unique @map("pipeline_id") @db.Uuid
+  currentCtc       Int?              @map("current_ctc")
+  expectedCtc      Int?              @map("expected_ctc")
+  offeredCtc       Int?              @map("offered_ctc")
+  finalCtc         Int?              @map("final_ctc")
+  hikePct          Int?              @map("hike_pct")
+  negotiationNotes String?           @map("negotiation_notes")
+  status           String            @default("in_progress")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pipeline CandidatePipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+
+  @@map("salary_negotiations")
+}
+
+model OfferLetter {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
+  pipelineId  String      @map("pipeline_id") @db.Uuid
+  offeredCtc  Int?        @map("offered_ctc")
+  designation String?
+  joiningDate DateTime?   @map("joining_date")
+  status      OfferStatus @default(DRAFTED)
+  letterUrl   String?     @map("letter_url")
+  sentAt      DateTime?   @map("sent_at")
+  acceptedAt  DateTime?   @map("accepted_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pipeline CandidatePipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+
+  @@map("offer_letters")
+}
+
+model JoiningStatus {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId            String    @map("tenant_id") @db.Uuid
+  pipelineId          String    @unique @map("pipeline_id") @db.Uuid
+  joiningDate         DateTime? @map("joining_date")
+  actualJoinedAt      DateTime? @map("actual_joined_at")
+  noticePeriodDays    Int?      @map("notice_period_days")
+  noticeStartDate     DateTime? @map("notice_start_date")
+  bgvStatus           String    @default("pending") @map("bgv_status")
+  docCollectionStatus String    @default("pending") @map("doc_collection_status")
+  laptopIssued        Boolean   @default(false) @map("laptop_issued")
+  idCardIssued        Boolean   @default(false) @map("id_card_issued")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pipeline CandidatePipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+
+  @@map("joining_status")
+}
+
+model PostJoiningFollowup {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String          @map("tenant_id") @db.Uuid
+  pipelineId      String          @map("pipeline_id") @db.Uuid
+  checkType       String          @map("check_type")
+  scheduledAt     DateTime?       @map("scheduled_at")
+  conductedAt     DateTime?       @map("conducted_at")
+  notes           String?
+  retentionStatus RetentionStatus @default(UNKNOWN) @map("retention_status")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pipeline CandidatePipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+
+  @@map("post_joining_followups")
+}
+
+model ActivityLog {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  entityType    String   @map("entity_type")
+  entityId      String   @map("entity_id") @db.Uuid
+  action        String
+  performedById String?  @map("performed_by_id") @db.Uuid
+  metadata      Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  performedBy User?  @relation("PerformedBy", fields: [performedById], references: [id], onDelete: SetNull)
+
+  @@map("activity_logs")
+}
+
+model Notification {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  recipientId  String    @map("recipient_id") @db.Uuid
+  type         String
+  title        String
+  body         String
+  entityType   String?   @map("entity_type")
+  entityId     String?   @map("entity_id") @db.Uuid
+  isRead       Boolean   @default(false) @map("is_read")
+  scheduledFor DateTime? @map("scheduled_for")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recipient User   @relation("Recipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}

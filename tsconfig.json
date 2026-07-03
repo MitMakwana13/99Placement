@@ -7,10 +7,19 @@
       "path": "./lib/db"
     },
     {
+      "path": "./lib/db-prisma"
+    },
+    {
+      "path": "./lib/shared-schemas"
+    },
+    {
       "path": "./lib/api-client-react"
     },
     {
       "path": "./lib/api-zod"
+    },
+    {
+      "path": "./artifacts/talentlab-next"
     }
   ]
 }
