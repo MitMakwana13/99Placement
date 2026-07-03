@@ -42,9 +42,12 @@ router.post("/candidates", requireAuth, async (req, res): Promise<void> => {
 
   const initials = name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
 
+  const tenantId = req.user?.tenantId || "4f019263-832c-45f4-989c-9ca1ddff6bfd";
+
   const [candidate] = await db
     .insert(candidatesTable)
     .values({
+      tenantId,
       name, email, phone, currentRole,
       experienceYears: experienceYears ? Number(experienceYears) : undefined,
       location, skills, source: source || "portal",
@@ -100,12 +103,15 @@ router.post("/candidates/:id/apply/:requirementId", requireAuth, async (req, res
   const candidateId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const requirementId = Array.isArray(req.params.requirementId) ? req.params.requirementId[0] : req.params.requirementId;
 
+  const tenantId = req.user?.tenantId || "4f019263-832c-45f4-989c-9ca1ddff6bfd";
+
   const [entry] = await db
     .insert(candidatePipelineTable)
     .values({
+      tenantId,
       candidateId,
       requirementId,
-      stage: "sourced",
+      stage: "SOURCED",
       assignedRecruiterId: req.employee?.employeeId,
     })
     .returning();

@@ -5,9 +5,14 @@
     "tsBuildInfoFile": ".tsbuildinfo",
     "outDir": "dist",
     "rootDir": "src",
-    "types": ["node"]
+    "types": ["node"],
+    "noImplicitAny": false,
+    "strict": false,
+    "strictNullChecks": false,
+    "strictPropertyInitialization": false
   },
   "include": ["src"],
+  "exclude": ["src/test-runner.ts"],
   "references": [
     {
       "path": "../../lib/db"

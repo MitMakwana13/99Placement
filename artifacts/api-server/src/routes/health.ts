@@ -1,10 +1,10 @@
 import { Router, type IRouter } from "express";
 import { HealthCheckResponse } from "@workspace/api-zod";
 import { prisma } from "../config/database";
+import { redisCache } from "../config/redis";
+import { queueProvider } from "../lib/queue/queue";
 
 const router: IRouter = Router();
-
-// Version constant (production/package configuration representation)
 const VERSION = "1.0.0";
 
 router.get("/health", async (_req, res) => {
@@ -17,15 +17,29 @@ router.get("/health", async (_req, res) => {
     dbStatus = "disconnected";
   }
 
+  // Check Redis status
+  const redisStatus = redisCache.isCacheEnabled() ? "connected" : "disconnected";
+
+  // Check Queue status
+  let queueStatus = "disconnected";
+  try {
+    const queueHealthy = await queueProvider.healthCheck();
+    queueStatus = queueHealthy ? "connected" : "disconnected";
+  } catch (err) {
+    queueStatus = "disconnected";
+  }
+
   const statusPayload = {
-    status: "ok",
+    status: (dbStatus === "connected" && redisStatus === "connected" && queueStatus === "connected") ? "ok" : "degraded",
     uptime: Math.floor(process.uptime()),
     database: dbStatus,
+    redis: redisStatus,
+    queue: queueStatus,
     version: VERSION,
   };
 
-  // If DB connection is down, return a degraded 503 service unavailable response
-  if (dbStatus === "disconnected") {
+  // If DB, Redis, or Queue is down, return a degraded 503 service unavailable response
+  if (dbStatus === "disconnected" || redisStatus === "disconnected" || queueStatus === "disconnected") {
     res.status(503).json(statusPayload);
     return;
   }

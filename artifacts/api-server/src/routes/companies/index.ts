@@ -23,15 +23,17 @@ router.get("/companies", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.post("/companies", requireAuth, async (req, res): Promise<void> => {
-  const { name, industry, website, gstin, address } = req.body;
+  const { name, industry, website, gstin } = req.body;
   if (!name) {
     res.status(400).json({ error: "Name is required" });
     return;
   }
 
+  const tenantId = req.user?.tenantId || "4f019263-832c-45f4-989c-9ca1ddff6bfd";
+
   const [company] = await db
     .insert(companiesTable)
-    .values({ name, industry, website, gstin, address })
+    .values({ tenantId, name, industry, website, gstin })
     .returning();
 
   res.status(201).json(company);
@@ -53,11 +55,11 @@ router.get("/companies/:id", requireAuth, async (req, res): Promise<void> => {
 
 router.patch("/companies/:id", requireAuth, async (req, res): Promise<void> => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { name, industry, website, gstin, address } = req.body;
+  const { name, industry, website, gstin } = req.body;
 
   const [company] = await db
     .update(companiesTable)
-    .set({ name, industry, website, gstin, address, updatedAt: new Date() })
+    .set({ name, industry, website, gstin, updatedAt: new Date() })
     .where(and(eq(companiesTable.id, id), isNull(companiesTable.deletedAt)))
     .returning();
 
@@ -85,9 +87,11 @@ router.post("/companies/:id/contacts", requireAuth, async (req, res): Promise<vo
     return;
   }
 
+  const tenantId = req.user?.tenantId || "4f019263-832c-45f4-989c-9ca1ddff6bfd";
+
   const [contact] = await db
     .insert(companyContactsTable)
-    .values({ companyId, name, email, phone, designation, isPrimary: !!isPrimary })
+    .values({ tenantId, companyId, name, email, phone, designation, isPrimary: !!isPrimary })
     .returning();
 
   res.status(201).json(contact);

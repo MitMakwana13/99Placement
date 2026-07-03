@@ -12,6 +12,7 @@ export const offerStatusEnum = pgEnum("offer_status", [
 
 export const salaryNegotiationsTable = pgTable("salary_negotiations", {
   id: uuid("id").primaryKey().defaultRandom(),
+  tenantId: uuid("tenant_id").notNull(),
   pipelineId: uuid("pipeline_id").notNull().unique(),
   currentCtc: integer("current_ctc"),
   expectedCtc: integer("expected_ctc"),
@@ -26,6 +27,7 @@ export const salaryNegotiationsTable = pgTable("salary_negotiations", {
 
 export const offerLettersTable = pgTable("offer_letters", {
   id: uuid("id").primaryKey().defaultRandom(),
+  tenantId: uuid("tenant_id").notNull(),
   pipelineId: uuid("pipeline_id").notNull(),
   offeredCtc: integer("offered_ctc"),
   designation: text("designation"),

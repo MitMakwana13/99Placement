@@ -11,6 +11,7 @@ export const interviewVerdictEnum = pgEnum("interview_verdict", [
 
 export const clientInterviewsTable = pgTable("client_interviews", {
   id: uuid("id").primaryKey().defaultRandom(),
+  tenantId: uuid("tenant_id").notNull(),
   pipelineId: uuid("pipeline_id").notNull(),
   clientContactId: uuid("client_contact_id"),
   interviewerEmployeeId: uuid("interviewer_employee_id"),

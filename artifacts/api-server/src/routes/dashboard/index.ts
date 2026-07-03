@@ -66,25 +66,25 @@ router.get("/dashboard/pipeline-funnel", requireAuth, async (req, res): Promise<
     .groupBy(candidatePipelineTable.stage);
 
   const labels: Record<string, string> = {
-    sourced: "Candidate Sourcing",
-    screened: "99 Screening",
-    assessed: "99 Assessment",
-    shortlisted: "Shortlisted",
-    client_interview: "Client Interview",
-    offer: "Offer",
-    joining: "Joining",
-    post_joining: "Post Joining",
-    rejected: "Rejected",
-    dropped: "Dropped",
+    SOURCED: "Candidate Sourcing",
+    SCREENED: "99 Screening",
+    ASSESSED: "99 Assessment",
+    SHORTLISTED: "Shortlisted",
+    CLIENT_INTERVIEW: "Client Interview",
+    OFFER: "Offer",
+    JOINING: "Joining",
+    POST_JOINING: "Post Joining",
+    REJECTED: "Rejected",
+    DROPPED: "Dropped",
   };
 
   const total = stageCounts.reduce((sum, s) => sum + Number(s.count), 0) || 1;
 
-  const funnel = ["sourced", "screened", "assessed", "shortlisted", "client_interview", "offer", "joining"].map(stage => {
+  const funnel = ["SOURCED", "SCREENED", "ASSESSED", "SHORTLISTED", "CLIENT_INTERVIEW", "OFFER", "JOINING"].map(stage => {
     const found = stageCounts.find(s => s.stage === stage);
     const count2 = found ? Number(found.count) : 0;
     return {
-      stage,
+      stage: stage.toLowerCase(),
       label: labels[stage] || stage,
       count: count2,
       pct: Math.round((count2 / total) * 100),

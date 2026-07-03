@@ -1,0 +1,353 @@
+{
+  "info": {
+    "_postman_id": "8b5f3cd1-b22c-497b-9442-7cf68e1abcf1",
+    "name": "Candidate Domain REST APIs",
+    "description": "Enterprise Recruitment Management System - Candidate Domain API Contract. Includes validation rules, payloads, search filters, timeline log checks, document uploads, and candidate merge flows.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Candidate Profile",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{ACCESS_TOKEN}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"phone\": \"+15550199\",\n  \"currentRole\": \"Senior Software Engineer\",\n  \"experienceYears\": 6,\n  \"location\": \"San Francisco, CA\",\n  \"skills\": [\"React\", \"TypeScript\", \"Node.js\", \"PostgreSQL\"],\n  \"source\": \"PORTAL\",\n  \"currentCtc\": 120000,\n  \"expectedCtc\": 145000,\n  \"noticeDays\": 30,\n  \"summary\": \"Experienced full-stack software engineer with a focus on web applications and high-throughput backend services.\",\n  \"resumeUrl\": \"https://cloudinary.com/resumes/john_doe_resume.pdf\",\n  \"address\": {\n    \"addressLine1\": \"123 Tech Lane\",\n    \"city\": \"San Francisco\",\n    \"state\": \"CA\",\n    \"postalCode\": \"94105\",\n    \"country\": \"USA\"\n  },\n  \"educations\": [\n    {\n      \"degree\": \"Bachelor of Science\",\n      \"fieldOfStudy\": \"Computer Science\",\n      \"institution\": \"State University\",\n      \"startDate\": \"2016-09-01T00:00:00.000Z\",\n      \"endDate\": \"2020-05-15T00:00:00.000Z\",\n      \"isCompleted\": true\n    }\n  ],\n  \"experiences\": [\n    {\n      \"company\": \"Innovate Corp\",\n      \"title\": \"Software Engineer II\",\n      \"location\": \"San Francisco, CA\",\n      \"startDate\": \"2020-06-01T00:00:00.000Z\",\n      \"isCurrent\": true,\n      \"description\": \"Responsible for scaling core microservices and refactoring frontend dashboard.\"\n    }\n  ],\n  \"skillsList\": [\n    {\n      \"name\": \"TypeScript\",\n      \"rating\": 5,\n      \"yearsOfExperience\": 4\n    }\n  ],\n  \"languages\": [\n    {\n      \"language\": \"English\",\n      \"proficiency\": \"NATIVE\"\n    }\n  ],\n  \"certifications\": [\n    {\n      \"name\": \"AWS Certified Solutions Architect\",\n      \"issuingOrganization\": \"Amazon Web Services\",\n      \"issueDate\": \"2022-08-10T00:00:00.000Z\"\n    }\n  ],\n  \"documents\": [\n    {\n      \"name\": \"john_doe_resume.pdf\",\n      \"documentType\": \"RESUME\",\n      \"fileUrl\": \"https://cloudinary.com/resumes/john_doe_resume.pdf\",\n      \"fileSize\": 154200,\n      \"checksum\": \"e59b75b163e14a2a1b15a1e2f38d38d3\"\n    }\n  ],\n  \"tags\": [\"High-Potential\", \"Full-Stack\"]\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/api/v1/candidates",
+          "host": [
+            "{{BASE_URL}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "candidates"
+          ]
+        }
+      }
+    },
+    {
+      "name": "List Candidates (Search & Filters)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{ACCESS_TOKEN}}"
+          }
+        ],
+        "url": {
+          "raw": "{{BASE_URL}}/api/v1/candidates?search=TypeScript&limit=10&sortBy=createdAt&sortOrder=desc",
+          "host": [
+            "{{BASE_URL}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "candidates"
+          ],
+          "query": [
+            {
+              "key": "search",
+              "value": "TypeScript"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            },
+            {
+              "key": "sortBy",
+              "value": "createdAt"
+            },
+            {
+              "key": "sortOrder",
+              "value": "desc"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get Candidate by ID",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{ACCESS_TOKEN}}"
+          }
+        ],
+        "url": {
+          "raw": "{{BASE_URL}}/api/v1/candidates/:id",
+          "host": [
+            "{{BASE_URL}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "candidates",
+            ":id"
+          ],
+          "variable": [
+            {
+              "key": "id",
+              "value": "uuid-placeholder"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Update Candidate Details",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{ACCESS_TOKEN}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"currentRole\": \"Lead Software Engineer\",\n  \"expectedCtc\": 160000,\n  \"tags\": [\"High-Potential\", \"Lead\"]\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/api/v1/candidates/:id",
+          "host": [
+            "{{BASE_URL}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "candidates",
+            ":id"
+          ],
+          "variable": [
+            {
+              "key": "id",
+              "value": "uuid-placeholder"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Merge Duplicate Candidates",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{ACCESS_TOKEN}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sourceCandidateId\": \"source-uuid-here\",\n  \"targetCandidateId\": \"target-uuid-here\"\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/api/v1/candidates/merge",
+          "host": [
+            "{{BASE_URL}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "candidates",
+            "merge"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Add Candidate Note",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{ACCESS_TOKEN}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"content\": \"Highly recommended candidate, passed tech round 1.\",\n  \"isPrivate\": false\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/api/v1/candidates/:id/notes",
+          "host": [
+            "{{BASE_URL}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "candidates",
+            ":id",
+            "notes"
+          ],
+          "variable": [
+            {
+              "key": "id",
+              "value": "uuid-placeholder"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Upload Document",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{ACCESS_TOKEN}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Offer_Acceptance.pdf\",\n  \"documentType\": \"AGREEMENT\",\n  \"fileUrl\": \"https://cloudinary.com/agreements/offer_acceptance.pdf\"\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/api/v1/candidates/:id/documents",
+          "host": [
+            "{{BASE_URL}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "candidates",
+            ":id",
+            "documents"
+          ],
+          "variable": [
+            {
+              "key": "id",
+              "value": "uuid-placeholder"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get Timeline History",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{ACCESS_TOKEN}}"
+          }
+        ],
+        "url": {
+          "raw": "{{BASE_URL}}/api/v1/candidates/:id/timeline",
+          "host": [
+            "{{BASE_URL}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "candidates",
+            ":id",
+            "timeline"
+          ],
+          "variable": [
+            {
+              "key": "id",
+              "value": "uuid-placeholder"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Save Search Filter",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{ACCESS_TOKEN}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Seniors React Notice30\",\n  \"filters\": {\n    \"skills\": [\"React\"],\n    \"minExperience\": 5,\n    \"maxNoticeDays\": 30\n  }\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/api/v1/candidates/saved-filters",
+          "host": [
+            "{{BASE_URL}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "candidates",
+            "saved-filters"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Soft Delete Candidate Profile",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{ACCESS_TOKEN}}"
+          }
+        ],
+        "url": {
+          "raw": "{{BASE_URL}}/api/v1/candidates/:id",
+          "host": [
+            "{{BASE_URL}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "candidates",
+            ":id"
+          ],
+          "variable": [
+            {
+              "key": "id",
+              "value": "uuid-placeholder"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

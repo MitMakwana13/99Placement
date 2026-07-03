@@ -10,29 +10,36 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "react": "catalog:",
-    "react-dom": "catalog:",
-    "next": "15.5.20",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/modifiers": "^9.0.0",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@hookform/resolvers": "^3.10.0",
     "@tanstack/react-query": "catalog:",
     "@workspace/shared-schemas": "workspace:*",
-    "lucide-react": "catalog:",
-    "framer-motion": "catalog:",
-    "clsx": "catalog:",
-    "tailwind-merge": "catalog:",
     "class-variance-authority": "catalog:",
+    "clsx": "catalog:",
+    "framer-motion": "catalog:",
+    "lucide-react": "catalog:",
+    "next": "15.5.20",
+    "react": "catalog:",
+    "react-dom": "catalog:",
     "react-hook-form": "^7.55.0",
-    "@hookform/resolvers": "^3.10.0",
-    "zod": "catalog:"
+    "recharts": "^3.9.1",
+    "tailwind-merge": "catalog:",
+    "zod": "catalog:",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "typescript": "^5.3.3",
+    "@eslint/eslintrc": "^3.0.0",
+    "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "@tailwindcss/postcss": "^4.0.0",
-    "tailwindcss": "catalog:",
+    "@types/recharts": "^2.0.1",
     "eslint": "^9.0.0",
     "eslint-config-next": "15.5.20",
-    "@eslint/eslintrc": "^3.0.0"
+    "tailwindcss": "catalog:",
+    "typescript": "^5.3.3"
   }
 }

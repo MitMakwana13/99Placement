@@ -4,9 +4,24 @@ import { candidatePipelineTable, candidatesTable, activityLogsTable } from "@wor
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../../middleware/auth";
 
-const STAGES = ["sourced", "screened", "assessed", "shortlisted", "client_interview", "offer", "joining", "post_joining", "rejected", "dropped"] as const;
-
 const router: IRouter = Router();
+
+// Prisma owns the pipeline_stage enum with uppercase values.
+// We normalize to uppercase when reading/writing.
+const STAGES = ["SOURCED", "SCREENED", "ASSESSED", "SHORTLISTED", "CLIENT_INTERVIEW", "OFFER", "JOINING", "POST_JOINING", "REJECTED", "DROPPED"] as const;
+type StageKey = typeof STAGES[number];
+
+// Map lowercase frontend stage values to Prisma uppercase equivalents
+const normalizeStage = (s: string): StageKey => {
+  const map: Record<string, StageKey> = {
+    sourced: "SOURCED", screened: "SCREENED", assessed: "ASSESSED",
+    shortlisted: "SHORTLISTED", client_interview: "CLIENT_INTERVIEW",
+    offer: "OFFER", joining: "JOINING", post_joining: "POST_JOINING",
+    rejected: "REJECTED", dropped: "DROPPED",
+  };
+  return map[s.toLowerCase()] ?? (s.toUpperCase() as StageKey);
+};
+
 
 router.get("/pipeline", requireAuth, async (req, res): Promise<void> => {
   const { requirementId } = req.query;
@@ -48,9 +63,12 @@ router.get("/pipeline", requireAuth, async (req, res): Promise<void> => {
     .leftJoin(candidatesTable, eq(candidatePipelineTable.candidateId, candidatesTable.id))
     .where(conditions.length ? and(...conditions) : undefined);
 
-  const kanban: Record<string, typeof entries> = Object.fromEntries(STAGES.map(s => [s, []]));
+  const kanban: Record<string, typeof entries> = Object.fromEntries(STAGES.map(s => [s.toLowerCase(), []]));
   entries.forEach(e => {
-    if (e.stage && e.stage in kanban) kanban[e.stage].push(e);
+    const key = (e.stage ?? "").toLowerCase();
+    // Normalize CLIENT_INTERVIEW -> client_interview etc.
+    const normalizedKey = key.replace(/_([a-z])/g, (_, c) => `_${c}`);
+    if (normalizedKey in kanban) kanban[normalizedKey].push(e);
   });
 
   res.json(kanban);
@@ -67,7 +85,7 @@ router.patch("/pipeline/:id/stage", requireAuth, async (req, res): Promise<void>
 
   const [entry] = await db
     .update(candidatePipelineTable)
-    .set({ stage, notes, stageUpdatedAt: new Date(), updatedAt: new Date() })
+    .set({ stage: normalizeStage(stage), notes, stageUpdatedAt: new Date(), updatedAt: new Date() })
     .where(eq(candidatePipelineTable.id, id))
     .returning();
 
@@ -76,8 +94,10 @@ router.patch("/pipeline/:id/stage", requireAuth, async (req, res): Promise<void>
     return;
   }
 
+  const { tenantId } = req.context;
   // Log activity
   await db.insert(activityLogsTable).values({
+    tenantId,
     entityType: "pipeline",
     entityId: id,
     action: `stage_changed_to_${stage}`,

@@ -9,6 +9,7 @@ export const requirementStatusEnum = pgEnum("requirement_status", ["open", "on_h
 
 export const requirementsTable = pgTable("requirements", {
   id: uuid("id").primaryKey().defaultRandom(),
+  tenantId: uuid("tenant_id").notNull(),
   companyId: uuid("company_id").notNull().references(() => companiesTable.id),
   recruiterId: uuid("recruiter_id").references(() => employeesTable.id),
   title: text("title").notNull(),

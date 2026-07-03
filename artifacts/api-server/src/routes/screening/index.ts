@@ -14,6 +14,7 @@ async function getScreeningWithCriteria(id: string) {
 }
 
 router.post("/screening", requireAuth, async (req, res): Promise<void> => {
+  const { tenantId } = req.context;
   const { pipelineId, interviewerId, scheduledAt, mode, notes, criteriaScores } = req.body;
   if (!pipelineId || !interviewerId) {
     res.status(400).json({ error: "pipelineId and interviewerId required" });
@@ -23,6 +24,7 @@ router.post("/screening", requireAuth, async (req, res): Promise<void> => {
   const [screening] = await db
     .insert(screeningInterviewsTable)
     .values({
+      tenantId,
       pipelineId,
       interviewerId,
       scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
@@ -34,6 +36,7 @@ router.post("/screening", requireAuth, async (req, res): Promise<void> => {
   if (criteriaScores && Array.isArray(criteriaScores)) {
     await db.insert(screeningCriteriaScoresTable).values(
       criteriaScores.map((c: { criterion: string; score: number; notes?: string }) => ({
+        tenantId,
         screeningId: screening.id,
         criterion: c.criterion,
         score: c.score,
@@ -58,6 +61,7 @@ router.get("/screening/:id", requireAuth, async (req, res): Promise<void> => {
 
 router.patch("/screening/:id", requireAuth, async (req, res): Promise<void> => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const { tenantId } = req.context;
   const { scheduledAt, mode, notes, criteriaScores } = req.body;
 
   const [existing] = await db.select({ id: screeningInterviewsTable.id }).from(screeningInterviewsTable).where(eq(screeningInterviewsTable.id, id));
@@ -75,6 +79,7 @@ router.patch("/screening/:id", requireAuth, async (req, res): Promise<void> => {
     await db.delete(screeningCriteriaScoresTable).where(eq(screeningCriteriaScoresTable.screeningId, id));
     await db.insert(screeningCriteriaScoresTable).values(
       criteriaScores.map((c: { criterion: string; score: number; notes?: string }) => ({
+        tenantId,
         screeningId: id,
         criterion: c.criterion,
         score: c.score,

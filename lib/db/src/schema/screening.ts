@@ -6,6 +6,7 @@ export const verdictEnum = pgEnum("verdict", ["shortlist", "hold", "reject"]);
 
 export const screeningInterviewsTable = pgTable("screening_interviews", {
   id: uuid("id").primaryKey().defaultRandom(),
+  tenantId: uuid("tenant_id").notNull(),
   pipelineId: uuid("pipeline_id").notNull(),
   interviewerId: uuid("interviewer_id").notNull(),
   scheduledAt: timestamp("scheduled_at"),
@@ -21,6 +22,7 @@ export const screeningInterviewsTable = pgTable("screening_interviews", {
 
 export const screeningCriteriaScoresTable = pgTable("screening_criteria_scores", {
   id: uuid("id").primaryKey().defaultRandom(),
+  tenantId: uuid("tenant_id").notNull(),
   screeningId: uuid("screening_id").notNull().references(() => screeningInterviewsTable.id),
   criterion: text("criterion").notNull(),
   score: integer("score").notNull().default(0),

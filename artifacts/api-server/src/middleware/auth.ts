@@ -1,20 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { Role } from "@workspace/db-prisma";
-
-// Fail fast at startup — never silently use a weak secret in any environment.
-const JWT_SECRET = process.env.SESSION_SECRET;
-if (!JWT_SECRET) {
-  console.error("FATAL: SESSION_SECRET environment variable is not set. Refusing to start.");
-  process.exit(1);
-}
-
-export interface JwtPayload {
-  userId: string;
-  email: string;
-  role: Role;
-  tenantId: string;
-}
+import { env } from "../config/env";
+import { verifyAccessToken, JwtPayload } from "../utils/jwt";
+import { RbacService } from "../services/rbac.service";
+import { logLocalStorage } from "../config/als";
 
 declare global {
   namespace Express {
@@ -29,7 +18,7 @@ declare global {
   }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const header = req.headers.authorization;
   if (!header || !header.startsWith("Bearer ")) {
     res.status(401).json({ error: "Unauthorized" });
@@ -38,7 +27,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
   const token = header.slice(7);
   try {
-    const payload = jwt.verify(token, JWT_SECRET!) as JwtPayload;
+    const payload = verifyAccessToken(token);
     req.user = payload;
     
     // Populate request context parameters
@@ -46,6 +35,19 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
       req.context.userId = payload.userId;
       req.context.role = payload.role;
       req.context.tenantId = payload.tenantId;
+      
+      const store = logLocalStorage.getStore();
+      if (store) {
+        store.tenantId = payload.tenantId;
+        store.userId = payload.userId;
+      }
+      
+      // Load user permissions dynamically into the context
+      try {
+        req.context.permissions = await RbacService.getUserPermissions(payload.userId);
+      } catch (err) {
+        req.context.permissions = [];
+      }
     }
     
     // Maintain backward compatibility with legacy Drizzle routes
@@ -61,13 +63,15 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   }
 }
 
-export function requireRole(...roles: Role[]) {
+export function requireRole(...roles: string[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
-    if (!roles.includes(req.user.role)) {
+    
+    const hasRole = roles.includes(req.user.role) || roles.includes(req.user.systemRole);
+    if (!hasRole) {
       res.status(403).json({ error: "Forbidden" });
       return;
     }
@@ -75,6 +79,6 @@ export function requireRole(...roles: Role[]) {
   };
 }
 
-export function signToken(payload: JwtPayload): string {
-  return jwt.sign(payload, JWT_SECRET!, { expiresIn: "7d" });
+export function signToken(payload: { userId: string; email: string; role: string; tenantId: string }): string {
+  return jwt.sign({ ...payload, systemRole: payload.role }, env.JWT_SECRET, { expiresIn: "7d" });
 }

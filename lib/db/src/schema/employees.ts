@@ -11,6 +11,7 @@ export const employeeRoleEnum = pgEnum("employee_role", [
 
 export const employeesTable = pgTable("employees", {
   id: uuid("id").primaryKey().defaultRandom(),
+  tenantId: uuid("tenant_id").notNull(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),

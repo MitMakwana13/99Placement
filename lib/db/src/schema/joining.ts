@@ -11,6 +11,7 @@ export const retentionStatusEnum = pgEnum("retention_status", [
 
 export const joiningStatusTable = pgTable("joining_status", {
   id: uuid("id").primaryKey().defaultRandom(),
+  tenantId: uuid("tenant_id").notNull(),
   pipelineId: uuid("pipeline_id").notNull().unique(),
   joiningDate: timestamp("joining_date"),
   actualJoinedAt: timestamp("actual_joined_at"),
@@ -26,6 +27,7 @@ export const joiningStatusTable = pgTable("joining_status", {
 
 export const postJoiningFollowupsTable = pgTable("post_joining_followups", {
   id: uuid("id").primaryKey().defaultRandom(),
+  tenantId: uuid("tenant_id").notNull(),
   pipelineId: uuid("pipeline_id").notNull(),
   checkType: text("check_type").notNull(), // "30_day" | "60_day" | "90_day"
   scheduledAt: timestamp("scheduled_at"),

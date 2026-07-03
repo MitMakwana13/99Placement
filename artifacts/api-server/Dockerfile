@@ -38,9 +38,8 @@ COPY lib/api-zod/package.json ./lib/api-zod/
 COPY lib/db/package.json ./lib/db/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --ignore-scripts
 COPY . .
-RUN pnpm --filter @workspace/db-prisma run build || true
-RUN pnpm --filter @workspace/shared-schemas run build || true
-RUN pnpm --filter @workspace/api-server run build
+RUN DATABASE_URL="postgresql://localhost:5432" node ./lib/db-prisma/node_modules/prisma/build/index.js generate --schema=./lib/db-prisma/prisma/schema.prisma
+RUN node artifacts/api-server/build.mjs
 
 # Production runner stage
 FROM node:22-alpine AS runner

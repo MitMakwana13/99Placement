@@ -2,8 +2,11 @@ import app from "./app";
 import { env } from "./config/env";
 import { logger } from "./config/logger";
 import { connectDatabase, disconnectDatabase } from "./config/database";
+import { bootstrapEventHandlers } from "./events/bootstrap";
+import { OutboxService } from "./services/outbox.service";
 
 let server: ReturnType<typeof app.listen>;
+let outboxInterval: NodeJS.Timeout | null = null;
 
 async function bootstrap() {
   logger.info("🚀 Bootstrapping Express API server...");
@@ -11,7 +14,10 @@ async function bootstrap() {
   // 1. Connect to PostgreSQL via Prisma Client
   await connectDatabase();
 
-  // 2. Start HTTP Listener
+  // 2. Register all domain event handlers
+  bootstrapEventHandlers();
+
+  // 3. Start HTTP Listener
   server = app.listen(env.PORT, () => {
     logger.info(
       {
@@ -22,7 +28,13 @@ async function bootstrap() {
       "⚡ Server is running and listening for requests."
     );
   });
+
+  // 4. Start Transactional Outbox worker
+  if (env.NODE_ENV !== "test") {
+    outboxInterval = OutboxService.startWorker(5000);
+  }
 }
+
 
 // Handle unexpected failures
 process.on("unhandledRejection", (reason) => {
@@ -47,6 +59,11 @@ process.on("SIGINT", () => {
 });
 
 async function gracefulShutdown() {
+  if (outboxInterval) {
+    clearInterval(outboxInterval);
+    logger.info("Outbox worker stopped.");
+  }
+
   if (server) {
     server.close(async () => {
       logger.info("👋 HTTP server closed.");

@@ -37,7 +37,6 @@ router.get("/requirements", requireAuth, async (req, res): Promise<void> => {
         industry: companiesTable.industry,
         website: companiesTable.website,
         gstin: companiesTable.gstin,
-        address: companiesTable.address,
         isActive: companiesTable.isActive,
         createdAt: companiesTable.createdAt,
       },
@@ -52,6 +51,7 @@ router.get("/requirements", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.post("/requirements", requireAuth, async (req, res): Promise<void> => {
+  const { tenantId } = req.context;
   const { companyId, title, location, jobType, urgency, salaryBand, jdText, openingsCount, status, deadline, recruiterId } = req.body;
   if (!companyId || !title || !location) {
     res.status(400).json({ error: "companyId, title and location are required" });
@@ -61,6 +61,7 @@ router.post("/requirements", requireAuth, async (req, res): Promise<void> => {
   const [req2] = await db
     .insert(requirementsTable)
     .values({
+      tenantId,
       companyId, title, location,
       jobType: jobType || "full_time",
       urgency: urgency || "normal",
@@ -100,7 +101,6 @@ router.get("/requirements/:id", requireAuth, async (req, res): Promise<void> => 
         industry: companiesTable.industry,
         website: companiesTable.website,
         gstin: companiesTable.gstin,
-        address: companiesTable.address,
         isActive: companiesTable.isActive,
         createdAt: companiesTable.createdAt,
       },

@@ -74,6 +74,23 @@ const globalRateLimiter = rateLimit({
 });
 app.use("/api/v1", globalRateLimiter);
 
+// 7.5 Strict Auth API Rate Limiter (Brute-force protection)
+const authRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: env.NODE_ENV === "production" ? 15 : 100, // strictly limit login/register attempts
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    timestamp: new Date().toISOString(),
+    error: {
+      code: "AUTH_RATE_LIMIT_EXCEEDED",
+      message: "Too many authentication attempts. Please try again after 15 minutes.",
+    },
+  },
+});
+app.use("/api/v1/auth", authRateLimiter);
+
 // 8. Core Application Router (Version 1)
 app.use("/api/v1", router);
 

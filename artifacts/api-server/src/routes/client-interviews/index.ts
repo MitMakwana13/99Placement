@@ -30,6 +30,7 @@ router.get("/client-interviews", requireAuth, async (req, res): Promise<void> =>
 });
 
 router.post("/client-interviews", requireAuth, async (req, res): Promise<void> => {
+  const { tenantId } = req.context;
   const { pipelineId, scheduledAt, mode, round, clientContactId } = req.body;
   if (!pipelineId || !scheduledAt) {
     res.status(400).json({ error: "pipelineId and scheduledAt required" });
@@ -39,6 +40,7 @@ router.post("/client-interviews", requireAuth, async (req, res): Promise<void> =
   const [interview] = await db
     .insert(clientInterviewsTable)
     .values({
+      tenantId,
       pipelineId,
       scheduledAt: new Date(scheduledAt),
       mode: mode || "video",

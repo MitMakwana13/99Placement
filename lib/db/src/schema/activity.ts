@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 
 export const activityLogsTable = pgTable("activity_logs", {
   id: uuid("id").primaryKey().defaultRandom(),
+  tenantId: uuid("tenant_id").notNull(),
   entityType: text("entity_type").notNull(),
   entityId: uuid("entity_id").notNull(),
   action: text("action").notNull(),
@@ -14,6 +15,7 @@ export const activityLogsTable = pgTable("activity_logs", {
 
 export const notificationsTable = pgTable("notifications", {
   id: uuid("id").primaryKey().defaultRandom(),
+  tenantId: uuid("tenant_id").notNull(),
   recipientId: uuid("recipient_id").notNull(),
   type: text("type").notNull(),
   title: text("title").notNull(),

@@ -17,47 +17,49 @@ import {
 async function seed() {
   console.log("🌱 Seeding database...");
 
+  // ── Companies ──────────────────────────────────────────────────────────────
+  const defaultTenantId = "4f019263-832c-45f4-989c-9ca1ddff6bfd";
+
   // ── Employees ──────────────────────────────────────────────────────────────
   const passwordHash = await bcrypt.hash("admin123", 10);
 
   const [admin] = await db
     .insert(employeesTable)
-    .values({ name: "Divyesh Patel", email: "admin@99placement.com", passwordHash, role: "admin" })
+    .values({ tenantId: defaultTenantId, name: "Divyesh Patel", email: "admin@99placement.com", passwordHash, role: "admin" })
     .onConflictDoNothing()
     .returning();
 
   const [recruiter] = await db
     .insert(employeesTable)
-    .values({ name: "Priya Sharma", email: "priya@99placement.com", passwordHash, role: "recruiter" })
+    .values({ tenantId: defaultTenantId, name: "Priya Sharma", email: "priya@99placement.com", passwordHash, role: "recruiter" })
     .onConflictDoNothing()
     .returning();
 
   console.log("✓ Employees created");
 
-  // ── Companies ──────────────────────────────────────────────────────────────
   const [company1] = await db
     .insert(companiesTable)
-    .values({ name: "TechCorp India", industry: "Technology", website: "https://techcorp.in" })
+    .values({ tenantId: defaultTenantId, name: "TechCorp India", industry: "Technology", website: "https://techcorp.in" })
     .onConflictDoNothing()
     .returning();
 
   const [company2] = await db
     .insert(companiesTable)
-    .values({ name: "FinServ Solutions", industry: "Finance", website: "https://finserv.co.in" })
+    .values({ tenantId: defaultTenantId, name: "FinServ Solutions", industry: "Finance", website: "https://finserv.co.in" })
     .onConflictDoNothing()
     .returning();
 
   const [company3] = await db
     .insert(companiesTable)
-    .values({ name: "HealthBridge", industry: "Healthcare", website: "https://healthbridge.in" })
+    .values({ tenantId: defaultTenantId, name: "HealthBridge", industry: "Healthcare", website: "https://healthbridge.in" })
     .onConflictDoNothing()
     .returning();
 
   if (company1) {
-    await db.insert(companyContactsTable).values({ companyId: company1.id, name: "Rahul Mehta", email: "rahul@techcorp.in", designation: "HR Head", isPrimary: true }).onConflictDoNothing();
+    await db.insert(companyContactsTable).values({ tenantId: defaultTenantId, companyId: company1.id, name: "Rahul Mehta", email: "rahul@techcorp.in", designation: "HR Head", isPrimary: true }).onConflictDoNothing();
   }
   if (company2) {
-    await db.insert(companyContactsTable).values({ companyId: company2.id, name: "Sneha Iyer", email: "sneha@finserv.co.in", designation: "Talent Acquisition", isPrimary: true }).onConflictDoNothing();
+    await db.insert(companyContactsTable).values({ tenantId: defaultTenantId, companyId: company2.id, name: "Sneha Iyer", email: "sneha@finserv.co.in", designation: "Talent Acquisition", isPrimary: true }).onConflictDoNothing();
   }
 
   console.log("✓ Companies created");
@@ -66,6 +68,7 @@ async function seed() {
   const requirements = [];
   if (company1) {
     const [r1] = await db.insert(requirementsTable).values({
+      tenantId: defaultTenantId,
       companyId: company1.id,
       recruiterId: recruiter?.id || admin?.id,
       title: "Senior React Developer",
@@ -79,6 +82,7 @@ async function seed() {
     if (r1) requirements.push(r1);
 
     const [r2] = await db.insert(requirementsTable).values({
+      tenantId: defaultTenantId,
       companyId: company1.id,
       recruiterId: recruiter?.id || admin?.id,
       title: "ML Engineer",
@@ -94,6 +98,7 @@ async function seed() {
 
   if (company2) {
     const [r3] = await db.insert(requirementsTable).values({
+      tenantId: defaultTenantId,
       companyId: company2.id,
       recruiterId: admin?.id,
       title: "Data Analyst",
@@ -124,20 +129,22 @@ async function seed() {
   const createdCandidates = [];
   for (const c of candidateData) {
     const initials = c.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
-    const [candidate] = await db.insert(candidatesTable).values({ ...c, initials }).onConflictDoNothing().returning();
+    const sourceUpper = c.source ? c.source.toUpperCase() : "PORTAL";
+    const [candidate] = await db.insert(candidatesTable).values({ ...c, initials, source: sourceUpper, tenantId: defaultTenantId }).onConflictDoNothing().returning();
     if (candidate) createdCandidates.push(candidate);
   }
 
   console.log("✓ Candidates created");
 
   // ── Pipeline entries ───────────────────────────────────────────────────────
-  const stages = ["sourced", "screened", "assessed", "shortlisted", "client_interview", "offer", "joining"] as const;
+  const stages = ["SOURCED", "SCREENED", "ASSESSED", "SHORTLISTED", "CLIENT_INTERVIEW", "OFFER", "JOINING"] as const;
 
   if (requirements.length > 0 && createdCandidates.length > 0) {
     for (let i = 0; i < createdCandidates.length; i++) {
       const req = requirements[i % requirements.length];
       const stage = stages[i % stages.length];
       await db.insert(candidatePipelineTable).values({
+        tenantId: defaultTenantId,
         candidateId: createdCandidates[i].id,
         requirementId: req.id,
         stage,
@@ -176,7 +183,8 @@ async function seed() {
   ];
 
   for (const q of questions) {
-    await db.insert(assessmentQuestionsTable).values(q).onConflictDoNothing();
+    const categoryUpper = q.category ? q.category.toUpperCase() : undefined;
+    await db.insert(assessmentQuestionsTable).values({ ...q, category: categoryUpper as any }).onConflictDoNothing();
   }
 
   console.log("✓ Assessment questions seeded");
