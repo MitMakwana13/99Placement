@@ -8,3 +8,4 @@ export * from "./interviews";
 export * from "./offers";
 export * from "./joining";
 export * from "./activity";
+export * from "./ai";

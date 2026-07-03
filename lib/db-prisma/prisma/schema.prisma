@@ -201,6 +201,10 @@ model Tenant {
   jobHiringManagerAssignments JobHiringManagerAssignment[]
   jobStatusHistories     JobStatusHistory[]
 
+  aiAnalyses             AiAnalysis[]
+  candidateShareLinks    CandidateShareLink[]
+  candidateAllocationStatuses CandidateAllocationStatus[]
+
   @@map("tenants")
 }
 
@@ -558,6 +562,7 @@ model Candidate {
   tags           CandidateTag[]
   notes          CandidateNote[]
   timeline       CandidateTimeline[]
+  allocationStatus CandidateAllocationStatus?
 
   @@map("candidates")
 }
@@ -645,6 +650,8 @@ model CandidatePipeline {
   activities         PipelineActivity[]
   tags               PipelineTag[]
   interviews         Interview[]
+  aiAnalyses         AiAnalysis[]
+  shareLinks         CandidateShareLink[]
 
   @@index([tenantId, stage])
   @@index([candidateId])
@@ -1698,3 +1705,78 @@ model OutboxEvent {
   @@map("outbox_events")
 }
 
+
+// -----------------------------------------------------------------------------
+// AI DOMAIN
+// -----------------------------------------------------------------------------
+
+model AiAnalysis {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId           String    @map("tenant_id") @db.Uuid
+  pipelineId         String    @map("pipeline_id") @db.Uuid
+  provider           String    @default("openai")
+  model              String?
+  resumeParsed       Json?     @map("resume_parsed")
+  screeningScore     Json?     @map("screening_score")
+  matchScore         Json?     @map("match_score")
+  rankScore          Float?    @map("rank_score")
+  candidateSummary   String?   @map("candidate_summary")
+  interviewQuestions Json?     @map("interview_questions")
+  assessmentRec      String?   @map("assessment_rec")
+  generatedAt        DateTime  @default(now()) @map("generated_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pipeline CandidatePipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+
+  @@index([pipelineId])
+  @@map("ai_analyses")
+}
+
+model CandidateShareLink {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  pipelineId     String    @map("pipeline_id") @db.Uuid
+  token          String    @unique
+  expiresAt      DateTime  @map("expires_at")
+  isActive       Boolean   @default(true) @map("is_active")
+  clientDecision String?   @map("client_decision")
+  clientFeedback String?   @map("client_feedback")
+  viewedAt       DateTime? @map("viewed_at")
+  createdById    String?   @map("created_by_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pipeline CandidatePipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("candidate_share_links")
+}
+
+enum AllocationStatus {
+  AVAILABLE
+  ALLOCATED
+  INTERVIEW_SCHEDULED
+  SELECTED
+  OFFER_RELEASED
+  JOINED
+  REJECTED
+  ON_HOLD
+  BLACKLISTED
+}
+
+model CandidateAllocationStatus {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String           @map("tenant_id") @db.Uuid
+  candidateId String           @unique @map("candidate_id") @db.Uuid
+  status      AllocationStatus @default(AVAILABLE)
+  reason      String?
+  updatedById String?          @map("updated_by_id") @db.Uuid
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@map("candidate_allocation_statuses")
+}

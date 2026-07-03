@@ -17,6 +17,9 @@ import joiningRouter from "./joining";
 import dashboardRouter from "./dashboard";
 import notificationsRouter from "./notifications";
 import uploadRouter from "./upload.routes";
+import aiRouter from "./ai";
+import shareRouter from "./share";
+import allocationRouter from "./candidates/allocation";
 
 const router: IRouter = Router();
 
@@ -38,5 +41,8 @@ router.use(joiningRouter);
 router.use(dashboardRouter);
 router.use(notificationsRouter);
 router.use(uploadRouter);
+router.use(aiRouter);
+router.use(shareRouter);
+router.use(allocationRouter);
 
 export default router;

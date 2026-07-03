@@ -29,9 +29,27 @@ import {
   Info,
   Clock,
   Award,
+  Zap,
+  Share2,
+  Link,
+  UserCheck,
 } from "lucide-react";
 
-type TabType = "overview" | "timeline" | "resume" | "notes" | "documents";
+type TabType = "overview" | "timeline" | "resume" | "notes" | "documents" | "ai";
+
+const ALLOCATION_STATUSES = [
+  { value: "AVAILABLE", label: "Available", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+  { value: "ALLOCATED", label: "Allocated", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+  { value: "INTERVIEW_SCHEDULED", label: "Interview Scheduled", color: "bg-violet-500/20 text-violet-400 border-violet-500/30" },
+  { value: "SELECTED", label: "Selected", color: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" },
+  { value: "OFFER_RELEASED", label: "Offer Released", color: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+  { value: "JOINED", label: "Joined", color: "bg-emerald-600/20 text-emerald-300 border-emerald-600/30" },
+  { value: "REJECTED", label: "Rejected", color: "bg-red-500/20 text-red-400 border-red-500/30" },
+  { value: "ON_HOLD", label: "On Hold", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
+  { value: "BLACKLISTED", label: "Blacklisted", color: "bg-gray-500/20 text-gray-400 border-gray-500/30" },
+];
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api/v1";
 
 export default function CandidateDetailPage() {
   const params = useParams();
@@ -53,6 +71,92 @@ export default function CandidateDetailPage() {
 
   const [newNoteText, setNewNoteText] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+
+  // AI Analysis state
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  // Allocation status
+  const [allocationStatus, setAllocationStatus] = useState("AVAILABLE");
+  const [updatingAllocation, setUpdatingAllocation] = useState(false);
+
+  // Share link
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [generatingShare, setGeneratingShare] = useState(false);
+
+  // Fetch AI analysis + allocation on candidate load
+  const [pipelineId, setPipelineId] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!id) return;
+    // Fetch allocation status
+    apiClient.get<any>(`candidates/${id}/allocation`)
+      .then((r) => { if (r.data?.status) setAllocationStatus(r.data.status); })
+      .catch(() => {});
+  }, [id]);
+
+  async function handleUpdateAllocation(status: string) {
+    setUpdatingAllocation(true);
+    try {
+      await apiClient.patch<any>(`candidates/${id}/allocation`, { status });
+      setAllocationStatus(status);
+      toast(`Status updated to ${status.replace(/_/g, " ")}`, "success");
+    } catch (err: any) {
+      toast("Failed to update status", "error");
+    } finally {
+      setUpdatingAllocation(false);
+    }
+  }
+
+  async function handleGenerateAiInsights(pid: string) {
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+      const headers: any = { "Content-Type": "application/json" };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const [screenRes, matchRes, summaryRes, questionsRes] = await Promise.allSettled([
+        fetch(`${API_BASE}/ai/screening-score`, { method: "POST", headers, body: JSON.stringify({ pipelineId: pid }) }),
+        fetch(`${API_BASE}/ai/match-score`, { method: "POST", headers, body: JSON.stringify({ pipelineId: pid }) }),
+        fetch(`${API_BASE}/ai/generate-summary/${id}`, { method: "POST", headers, body: JSON.stringify({ pipelineId: pid }) }),
+        fetch(`${API_BASE}/ai/interview-questions`, { method: "POST", headers, body: JSON.stringify({ pipelineId: pid, interviewType: "HR" }) }),
+      ]);
+
+      const analysis: any = {};
+      if (screenRes.status === "fulfilled" && screenRes.value.ok) analysis.screeningScore = await screenRes.value.json();
+      if (matchRes.status === "fulfilled" && matchRes.value.ok) analysis.matchScore = await matchRes.value.json();
+      if (summaryRes.status === "fulfilled" && summaryRes.value.ok) analysis.summary = (await summaryRes.value.json()).summary;
+      if (questionsRes.status === "fulfilled" && questionsRes.value.ok) analysis.interviewQuestions = (await questionsRes.value.json()).questions;
+
+      setAiAnalysis(analysis);
+      toast("AI Insights generated!", "success");
+    } catch (err: any) {
+      setAiError("Failed to generate AI insights. Check your AI_API_KEY configuration.");
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  async function handleShareCandidate(pid: string) {
+    setGeneratingShare(true);
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+      const headers: any = { "Content-Type": "application/json" };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const r = await fetch(`${API_BASE}/share/candidate/${pid}`, { method: "POST", headers, body: JSON.stringify({ expiryHours: 72 }) });
+      if (!r.ok) throw new Error("Failed to generate share link");
+      const { shareUrl: url } = await r.json();
+      setShareUrl(url);
+      await navigator.clipboard.writeText(url);
+      toast("Share link copied to clipboard!", "success");
+    } catch (err: any) {
+      toast(err.message || "Failed to create share link", "error");
+    } finally {
+      setGeneratingShare(false);
+    }
+  }
 
   // Mutation to add notes via backend
   const addNoteMutation = useMutation({
@@ -193,7 +297,29 @@ export default function CandidateDetailPage() {
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {/* Allocation Status Dropdown */}
+          <div className="relative">
+            <select
+              value={allocationStatus}
+              onChange={(e) => handleUpdateAllocation(e.target.value)}
+              disabled={updatingAllocation}
+              className="h-11 px-3 pr-8 rounded-2xl text-xs font-semibold border border-border bg-background text-foreground cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {ALLOCATION_STATUSES.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+            <UserCheck className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          </div>
+          <Button
+            variant="outline"
+            className="flex items-center gap-1.5 h-11 px-4.5 rounded-2xl cursor-pointer"
+            onClick={() => pipelineId ? handleShareCandidate(pipelineId) : toast("No active pipeline found for this candidate", "error")}
+            disabled={generatingShare}
+          >
+            <Share2 className="h-4 w-4" /> {generatingShare ? "Generating..." : "Share Candidate"}
+          </Button>
           <Button
             variant="outline"
             className="flex items-center gap-1.5 h-11 px-4.5 rounded-2xl cursor-pointer"
@@ -206,7 +332,7 @@ export default function CandidateDetailPage() {
             className="flex items-center gap-1.5 h-11 px-4.5 rounded-2xl cursor-pointer"
             onClick={handleDelete}
           >
-            <Trash2 className="h-4 w-4" /> Delete Profile
+            <Trash2 className="h-4 w-4" /> Delete
           </Button>
         </div>
       </header>
@@ -246,18 +372,49 @@ export default function CandidateDetailPage() {
               </div>
             </div>
 
-            {/* AI match widget */}
+            {/* AI match widget — live data */}
             <div className="bg-primary/5 border border-primary/10 p-4 rounded-2xl space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">AI Fit Rating</span>
                 <span className="text-xs bg-pastel-green text-pastel-green-ink px-2.5 py-0.5 rounded-full font-bold border border-green-200/10 flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" /> 94%
+                  <Sparkles className="h-3 w-3" />
+                  {aiAnalysis?.matchScore?.matchPercentage != null
+                    ? `${aiAnalysis.matchScore.matchPercentage}%`
+                    : aiAnalysis?.screeningScore?.overall != null
+                    ? `${aiAnalysis.screeningScore.overall * 10}%`
+                    : "Run AI"}
                 </span>
               </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                Candidate possesses all key frontend architectural capabilities. Highly recommended for Screening review.
+                {aiAnalysis?.screeningScore?.reasoning
+                  ? aiAnalysis.screeningScore.reasoning.slice(0, 120) + "..."
+                  : "Click AI Insights tab to generate a real-time AI analysis for this candidate."}
               </p>
+              {!aiAnalysis && (
+                <button
+                  onClick={() => { setActiveTab("ai"); }}
+                  className="text-[10px] text-primary font-semibold hover:underline"
+                >Generate AI Insights →</button>
+              )}
             </div>
+
+            {/* Allocation Status Badge */}
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Allocation</span>
+              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+                ALLOCATION_STATUSES.find((s) => s.value === allocationStatus)?.color ?? "bg-gray-500/20 text-gray-400"
+              }`}>
+                {ALLOCATION_STATUSES.find((s) => s.value === allocationStatus)?.label ?? allocationStatus}
+              </span>
+            </div>
+
+            {/* Share Link */}
+            {shareUrl && (
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+                <p className="text-[10px] text-blue-400 font-semibold mb-1 flex items-center gap-1"><Link className="h-3 w-3" /> Share Link Copied!</p>
+                <p className="text-[10px] text-muted-foreground font-mono truncate">{shareUrl}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -265,7 +422,7 @@ export default function CandidateDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Tab selector bar */}
           <div className="flex border-b border-border/60 overflow-x-auto gap-4">
-            {(["overview", "timeline", "resume", "notes", "documents"] as TabType[]).map((tab) => (
+            {(["overview", "timeline", "resume", "notes", "documents", "ai"] as TabType[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -273,9 +430,10 @@ export default function CandidateDetailPage() {
                   activeTab === tab
                     ? "border-primary text-foreground font-extrabold"
                     : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
+                } ${tab === "ai" ? "flex items-center gap-1" : ""}`}
               >
-                {tab}
+                {tab === "ai" && <Zap className="h-3 w-3 text-violet-400" />}
+                {tab === "ai" ? "AI Insights" : tab}
               </button>
             ))}
           </div>
@@ -565,6 +723,107 @@ export default function CandidateDetailPage() {
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {/* ── AI Insights Tab ─────────────────────────────────────── */}
+          {activeTab === "ai" && (
+            <div className="space-y-4">
+              {!aiAnalysis && !aiLoading && (
+                <Card className="border border-violet-500/20 bg-violet-500/5 shadow-sm p-2">
+                  <CardContent className="pt-6 text-center py-10">
+                    <Zap className="h-10 w-10 text-violet-400 mx-auto mb-3" />
+                    <h3 className="text-base font-bold text-foreground mb-1">Generate AI Insights</h3>
+                    <p className="text-xs text-muted-foreground mb-4 max-w-sm mx-auto">
+                      AI will analyze this candidate and generate a screening score, job match %, interview questions, and professional summary.
+                    </p>
+                    {aiError && <p className="text-xs text-red-400 mb-3">{aiError}</p>}
+                    <button
+                      onClick={() => {
+                        const pid = pipelineId ?? (candidate as any)?.pipelines?.[0]?.id ?? (candidate as any)?.pipelineId;
+                        if (pid) { setPipelineId(pid); handleGenerateAiInsights(pid); }
+                        else setAiError("No pipeline found. Assign this candidate to a job first.");
+                      }}
+                      className="px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl transition-colors inline-flex items-center gap-2"
+                    >
+                      <Zap className="h-4 w-4" /> Generate AI Insights
+                    </button>
+                  </CardContent>
+                </Card>
+              )}
+              {aiLoading && (
+                <Card className="border border-border/80 shadow-sm p-2">
+                  <CardContent className="pt-6 flex flex-col items-center py-10">
+                    <div className="w-10 h-10 rounded-full border-4 border-violet-500 border-t-transparent animate-spin mb-4" />
+                    <p className="text-sm font-semibold text-foreground">Running AI Analysis...</p>
+                    <p className="text-xs text-muted-foreground mt-1">This may take up to 15 seconds</p>
+                  </CardContent>
+                </Card>
+              )}
+              {aiAnalysis && (
+                <>
+                  {aiAnalysis.screeningScore && (
+                    <Card className="border border-border/80 shadow-sm p-2">
+                      <CardHeader>
+                        <CardTitle className="text-base font-bold flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 text-violet-400" /> AI Screening Score
+                          <span className={`ml-auto text-xs px-2.5 py-1 rounded-full border font-semibold ${aiAnalysis.screeningScore.recommendation === "SHORTLIST" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : aiAnalysis.screeningScore.recommendation === "REJECT" ? "bg-red-500/20 text-red-400 border-red-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30"}`}>{aiAnalysis.screeningScore.recommendation}</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-5 gap-3 mb-4">
+                          {([["Communication", aiAnalysis.screeningScore.communication], ["Experience", aiAnalysis.screeningScore.experience], ["Skills", aiAnalysis.screeningScore.skills], ["Education", aiAnalysis.screeningScore.education], ["Overall", aiAnalysis.screeningScore.overall]] as [string, number][]).map(([label, value]) => (
+                            <div key={label} className="text-center">
+                              <div className="text-2xl font-extrabold text-violet-400">{value}<span className="text-sm text-muted-foreground">/10</span></div>
+                              <div className="text-[10px] text-muted-foreground mt-1">{label}</div>
+                              <div className="w-full bg-muted rounded-full h-1.5 mt-2"><div className="bg-violet-500 h-1.5 rounded-full" style={{ width: `${(value ?? 0) * 10}%` }} /></div>
+                            </div>
+                          ))}
+                        </div>
+                        {aiAnalysis.screeningScore.reasoning && <p className="text-xs text-muted-foreground bg-muted/30 rounded-xl p-3 italic">"{aiAnalysis.screeningScore.reasoning}"</p>}
+                      </CardContent>
+                    </Card>
+                  )}
+                  {aiAnalysis.matchScore && (
+                    <Card className="border border-border/80 shadow-sm p-2">
+                      <CardHeader><CardTitle className="text-base font-bold">🎯 Job Match Score</CardTitle></CardHeader>
+                      <CardContent>
+                        <div className="flex items-center gap-6 mb-4">
+                          <div className="text-4xl font-extrabold text-emerald-400">{aiAnalysis.matchScore.matchPercentage}%</div>
+                          <div className="flex-1"><div className="w-full bg-muted rounded-full h-3"><div className="bg-gradient-to-r from-emerald-600 to-emerald-400 h-3 rounded-full" style={{ width: `${aiAnalysis.matchScore.matchPercentage}%` }} /></div></div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-xs">
+                          <div><p className="text-emerald-400 font-bold mb-2">✅ Matched Skills</p><div className="flex flex-wrap gap-1">{aiAnalysis.matchScore.matchedSkills?.map((s: string) => <span key={s} className="px-2 py-0.5 bg-emerald-500/10 text-emerald-300 text-[10px] rounded border border-emerald-500/20">{s}</span>)}</div></div>
+                          <div><p className="text-red-400 font-bold mb-2">⚠️ Missing Skills</p><div className="flex flex-wrap gap-1">{aiAnalysis.matchScore.missingSkills?.map((s: string) => <span key={s} className="px-2 py-0.5 bg-red-500/10 text-red-300 text-[10px] rounded border border-red-500/20">{s}</span>)}</div></div>
+                        </div>
+                        {aiAnalysis.matchScore.summary && <p className="text-xs text-muted-foreground mt-3 italic">"{aiAnalysis.matchScore.summary}"</p>}
+                      </CardContent>
+                    </Card>
+                  )}
+                  {aiAnalysis.summary && (
+                    <Card className="border border-border/80 shadow-sm p-2">
+                      <CardHeader><CardTitle className="text-base font-bold">📝 AI Generated Summary</CardTitle></CardHeader>
+                      <CardContent><p className="text-sm text-muted-foreground leading-relaxed">{aiAnalysis.summary}</p></CardContent>
+                    </Card>
+                  )}
+                  {aiAnalysis.interviewQuestions?.length > 0 && (
+                    <Card className="border border-border/80 shadow-sm p-2">
+                      <CardHeader>
+                        <CardTitle className="text-base font-bold">💬 Interview Questions</CardTitle>
+                        <CardDescription>AI-tailored questions for this candidate</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ol className="space-y-3">
+                          {aiAnalysis.interviewQuestions.map((q: string, i: number) => (
+                            <li key={i} className="flex gap-3 text-sm"><span className="text-violet-400 font-bold shrink-0">{i + 1}.</span><span className="text-muted-foreground leading-relaxed">{q}</span></li>
+                          ))}
+                        </ol>
+                      </CardContent>
+                    </Card>
+                  )}
+                  <button onClick={() => pipelineId && handleGenerateAiInsights(pipelineId)} className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1"><Zap className="h-3 w-3" /> Regenerate</button>
+                </>
+              )}
+            </div>
           )}
         </div>
       </div>

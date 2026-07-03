@@ -30,6 +30,11 @@ const envSchema = z.object({
   S3_SECRET_ACCESS_KEY: z.string().optional(),
   S3_BUCKET_NAME: z.string().optional(),
   S3_FORCE_PATH_STYLE: z.preprocess((val) => val === "true" || val === true, z.boolean()).default(false),
+  // AI Provider — configurable, no keys hardcoded
+  AI_PROVIDER: z.enum(["openai", "anthropic", "gemini", "custom"]).default("openai"),
+  AI_API_KEY: z.string().optional(),
+  AI_BASE_URL: z.string().url().optional(), // for custom/self-hosted endpoints
+  AI_MODEL: z.string().optional(),          // e.g. gpt-4o, gemini-pro, claude-3-sonnet
 });
 
 // Safe parse variables
