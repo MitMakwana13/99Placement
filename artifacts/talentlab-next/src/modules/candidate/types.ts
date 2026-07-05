@@ -18,6 +18,15 @@ export interface Candidate {
   deletedAt: string | null;
   notes?: any[];
   documents?: any[];
+  questionnaireResponses?: Record<string, string>;
+  pipelines?: Array<{
+    id: string;
+    stage: string;
+    job?: {
+      id: string;
+      title: string;
+    };
+  }>;
 }
 
 export interface CandidateFilters {

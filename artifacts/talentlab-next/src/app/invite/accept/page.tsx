@@ -49,8 +49,8 @@ function AcceptInviteForm() {
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
       <Card className="w-full max-w-md glass-panel shadow-soft border border-border/80 relative z-10">
         <CardHeader className="text-center pb-2">
-          <div className="w-12 h-12 rounded-xl bg-enterprise-indigo/10 flex items-center justify-center mx-auto mb-3">
-            <span className="text-enterprise-indigo font-black text-lg">99</span>
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+            <span className="text-primary font-black text-lg">99</span>
           </div>
           <CardTitle className="text-xl font-bold">Accept Invitation</CardTitle>
           <CardDescription>Create your 99 Placement account to join the workspace</CardDescription>
@@ -65,7 +65,7 @@ function AcceptInviteForm() {
             <Input id="pwd" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Min 8 chars, include a number" />
           </div>
           <Button
-            className="w-full bg-enterprise-indigo hover:bg-enterprise-indigo/90 text-white font-semibold shadow-sm transition-all"
+            className="w-full bg-primary hover:bg-primary/90 text-white font-semibold shadow-sm transition-all"
             disabled={!name || password.length < 8 || accept.isPending}
             onClick={() => accept.mutate()}
           >

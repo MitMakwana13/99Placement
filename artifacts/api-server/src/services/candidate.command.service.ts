@@ -92,6 +92,7 @@ export class CandidateCommandService {
           summary: input.summary,
           resumeUrl: input.resumeUrl,
           photoUrl: input.photoUrl,
+          questionnaireResponses: input.questionnaireResponses || {},
         },
       });
 
@@ -245,6 +246,7 @@ export class CandidateCommandService {
           summary: input.summary,
           resumeUrl: input.resumeUrl,
           photoUrl: input.photoUrl,
+          questionnaireResponses: input.questionnaireResponses || {},
         },
       });
 

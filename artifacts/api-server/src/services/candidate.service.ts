@@ -17,6 +17,7 @@ export interface CreateCandidateInput {
   summary?: string;
   resumeUrl?: string;
   photoUrl?: string;
+  questionnaireResponses?: any;
 
   address?: {
     addressLine1: string;

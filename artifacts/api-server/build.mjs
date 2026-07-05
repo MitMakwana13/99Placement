@@ -18,6 +18,7 @@ async function buildAll() {
     entryPoints: [
       path.resolve(artifactDir, "src/index.ts"),
       path.resolve(artifactDir, "src/seed.ts"),
+      path.resolve(artifactDir, "src/seed-demo.ts"),
       path.resolve(artifactDir, "src/test-runner.ts")
     ],
     platform: "node",
@@ -86,7 +87,9 @@ async function buildAll() {
       "mysql2",
       "newrelic",
       "odbc",
-      "piscina",
+      "pino-pretty",
+      "thread-stream",
+      "@prisma/client",
       "realm",
       "ref-napi",
       "rocksdb",

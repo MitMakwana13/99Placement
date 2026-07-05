@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
 import { CandidateForm } from "@/modules/candidate/components/CandidateForm";
+import { CandidateQuestionnaire } from "@/modules/candidate/components/CandidateQuestionnaire";
 import { EmailComposer } from "@/modules/candidate/components/communication/EmailComposer";
 import { WhatsAppComposer } from "@/modules/candidate/components/communication/WhatsAppComposer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,9 +38,10 @@ import {
   UserCheck,
   AlertCircle,
   ShieldAlert,
+  ClipboardList,
 } from "lucide-react";
 
-type TabType = "overview" | "timeline" | "resume" | "notes" | "documents" | "ai";
+type TabType = "overview" | "timeline" | "resume" | "notes" | "documents" | "ai" | "questionnaire";
 
 const ALLOCATION_STATUSES = [
   { value: "AVAILABLE", label: "Available", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
@@ -468,7 +470,7 @@ export default function CandidateDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Tab selector bar */}
           <div className="flex border-b border-border/60 overflow-x-auto gap-4">
-            {(["overview", "timeline", "resume", "notes", "documents", "ai"] as TabType[]).map((tab) => (
+            {(["overview", "timeline", "resume", "notes", "documents", "ai", "questionnaire"] as TabType[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -936,6 +938,10 @@ export default function CandidateDetailPage() {
               )}
             </div>
           )}
+          {activeTab === "questionnaire" && (
+            <CandidateQuestionnaire candidate={candidate as unknown as any} />
+          )}
+
         </div>
       </div>
 

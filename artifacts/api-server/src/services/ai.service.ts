@@ -249,11 +249,66 @@ Analyze and return the JSON score.`;
       await SubscriptionService.incrementUsage(tenantId, "ai_credits");
     }
 
-    const result = safeParse<ScreeningScoreResult>(raw, {
-      communication: 5, experience: 5, skills: 5, education: 5, overall: 5,
-      recommendation: "HOLD", reasoning: "Unable to analyze",
+    return safeParse<ScreeningScoreResult>(raw, {
+      communication: 5,
+      experience: 5,
+      skills: 5,
+      education: 5,
+      overall: 5,
+      recommendation: "HOLD",
+      reasoning: "Failed to parse AI response."
     });
-    return result;
+  },
+
+  /**
+   * Evaluate interviewer notes into structured 1-10 scores
+   */
+  async evaluateInterviewerNotes(
+    notes: string,
+    candidateRole: string,
+    tenantId?: string
+  ): Promise<any> {
+    if (tenantId) {
+      await SubscriptionService.checkUsageLimit(tenantId, "ai_credits");
+    }
+
+    const system = `You are a strict technical recruiter evaluator. Analyze the raw interviewer notes and extract structured scores on a 1-10 scale.
+Return ONLY valid JSON:
+{ 
+  "communicationScore": number, 
+  "technicalScore": number, 
+  "experienceScore": number, 
+  "salaryAlignScore": number, 
+  "noticePeriodScore": number, 
+  "personalityScore": number, 
+  "verdict": "SHORTLIST"|"HOLD"|"REJECT", 
+  "recommendation": string 
+}
+If notes are missing info for a category, assume a neutral score of 5. Be objective.`;
+
+    const userPrompt = `
+CANDIDATE ROLE: ${candidateRole}
+INTERVIEWER NOTES:
+${notes}
+
+Analyze the notes and return the JSON evaluation.`;
+
+    const raw = await callAI(system, userPrompt, tenantId);
+    
+    if (tenantId) {
+      await SubscriptionService.incrementUsage(tenantId, "ai_credits");
+    }
+
+    return safeParse<any>(raw, {
+      communicationScore: 5,
+      technicalScore: 5,
+      experienceScore: 5,
+      salaryAlignScore: 5,
+      noticePeriodScore: 5,
+      personalityScore: 5,
+      verdict: "HOLD",
+      recommendation: "AI analysis failed."
+    });
   },
 
   /**

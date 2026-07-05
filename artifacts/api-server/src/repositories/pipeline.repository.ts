@@ -87,6 +87,9 @@ const PIPELINE_FULL_INCLUDE = {
     },
     orderBy: { changedAt: "desc" as const },
   },
+  assessments: {
+    orderBy: { createdAt: "desc" as const },
+  },
 } as const;
 
 export const PipelineRepository = {

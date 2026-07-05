@@ -97,6 +97,42 @@ export default function CandidatesListPage() {
       render: (item) => <span className="text-xs text-muted-foreground font-medium">{item.location || "Remote"}</span>,
     },
     {
+      key: "allocation",
+      label: "Allocation Status",
+      render: (item) => {
+        if (!item.pipelines || item.pipelines.length === 0) {
+          return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/50 text-muted-foreground text-[10px] font-semibold border border-border/50">
+              Unallocated
+            </span>
+          );
+        }
+        
+        // Find the active pipeline if any (not REJECTED or HIRED)
+        const activePipeline = item.pipelines.find(p => p.stage !== "REJECTED" && p.stage !== "HIRED" && p.stage !== "OFFER_DECLINED");
+        
+        if (activePipeline) {
+          return (
+            <div className="flex flex-col gap-0.5">
+              <span className="inline-flex w-fit items-center gap-1.5 px-2.5 py-1 rounded-md bg-pastel-blue/20 text-pastel-blue-ink text-[10px] font-bold border border-pastel-blue/30">
+                <div className="w-1.5 h-1.5 rounded-full bg-pastel-blue-ink animate-pulse" />
+                Active in Pipeline
+              </span>
+              <span className="text-[9px] text-muted-foreground font-medium max-w-[120px] truncate" title={activePipeline.job?.title}>
+                {activePipeline.job?.title || "Unknown Job"}
+              </span>
+            </div>
+          );
+        }
+        
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted text-muted-foreground text-[10px] font-semibold border border-border">
+            Archived
+          </span>
+        );
+      },
+    },
+    {
       key: "source",
       label: "Sourcing Channel",
       render: (item) => {

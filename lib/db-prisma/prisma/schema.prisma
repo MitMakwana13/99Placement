@@ -588,6 +588,7 @@ model Candidate {
   expectedCtc     Int?            @map("expected_ctc")
   noticeDays      Int?            @map("notice_days")
   summary         String?
+  questionnaireResponses Json?   @map("questionnaire_responses")
   resumeUrl       String?         @map("resume_url")
   photoUrl        String?         @map("photo_url")
   createdAt       DateTime        @default(now()) @map("created_at")

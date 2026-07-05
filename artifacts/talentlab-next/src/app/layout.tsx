@@ -22,8 +22,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark:bg-zinc-950">
-      <body className={`${inter.variable} font-sans antialiased text-slate-800 bg-zinc-50`}>
+    <html lang="en" className="dark">
+      <body className={`${inter.variable} font-sans antialiased text-foreground bg-background`}>
         <QueryProvider>
           <ToastProvider>
             <AuthProvider>

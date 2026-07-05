@@ -75,6 +75,7 @@ export const CreateCandidateSchema = z.object({
   summary: z.string().optional(),
   resumeUrl: z.string().url("Invalid resume URL").optional().or(z.literal("")),
   photoUrl: z.string().url("Invalid photo URL").optional().or(z.literal("")),
+  questionnaireResponses: z.any().optional(),
 
   address: AddressSchema.optional(),
   educations: z.array(EducationSchema).optional(),

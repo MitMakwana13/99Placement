@@ -26,6 +26,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
+import { Logo } from "@/components/Logo";
 import { CopilotChat } from "@/components/CopilotChat";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { AnimatePresence, motion } from "framer-motion";
@@ -103,13 +104,8 @@ export default function DashboardLayout({
         }`}
       >
         <div className="flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center space-x-2.5">
-            <div className="p-1.5 rounded-xl bg-primary-foreground/10 text-primary">
-              <Sparkles className="h-4.5 w-4.5 text-enterprise-emerald" />
-            </div>
-            <span className="text-xl font-extrabold tracking-tighter text-white">
-              99 Placement <span className="text-enterprise-emerald font-medium">RMS</span>
-            </span>
+          <Link href="/dashboard" className="flex items-center">
+            <Logo className="h-10 w-auto" />
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}
@@ -134,7 +130,7 @@ export default function DashboardLayout({
                     : "text-sidebar-foreground/80 hover:text-white hover:bg-sidebar-accent/40"
                 }`}
               >
-                <Icon className={`h-4.5 w-4.5 ${isActive ? "text-enterprise-emerald" : ""}`} />
+                <Icon className={`h-4.5 w-4.5 ${isActive ? "text-primary" : ""}`} />
                 <span className="text-sm">{item.name}</span>
               </Link>
             );
@@ -145,7 +141,7 @@ export default function DashboardLayout({
         <div className="border-t border-sidebar-border/40 pt-4 space-y-3">
           <div className="flex items-center gap-3 px-2">
             <div className="h-9 w-9 rounded-xl bg-sidebar-accent flex items-center justify-center text-sidebar-primary-foreground font-semibold">
-              <User className="h-4.5 w-4.5 text-enterprise-emerald" />
+              <User className="h-4.5 w-4.5 text-primary" />
             </div>
             <div className="overflow-hidden">
               <p className="text-xs font-bold text-white truncate">{user.name}</p>
@@ -190,9 +186,9 @@ export default function DashboardLayout({
 
             {/* Tenant indicator */}
             <div className="hidden md:flex items-center gap-1 bg-muted/40 px-3 py-1.5 rounded-full text-xs font-semibold border border-border/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-enterprise-emerald inline-block animate-pulse" />
-              <span className="text-muted-foreground">Tenant:</span>
-              <span className="font-mono text-foreground font-bold">{user.tenantId.substring(0, 8)}...</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block animate-pulse" />
+              <span className="text-muted-foreground">Workspace:</span>
+              <span className="font-mono text-foreground font-bold">99 Placement</span>
             </div>
           </div>
         </header>

@@ -143,6 +143,19 @@ export function CandidateDrawer({ item, onClose }: CandidateDrawerProps) {
                   <span className="text-foreground font-bold">{item.assignedRecruiter.name}</span>
                 </div>
               )}
+              {item.assessments && item.assessments.length > 0 && (
+                <div className="border-t border-border/30 pt-2 flex items-center justify-between text-[10px] text-muted-foreground font-semibold">
+                  <span>Latest Assessment Score:</span>
+                  <span className={`font-bold flex items-center gap-1 ${
+                    item.assessments[0].percentage >= 80 ? "text-emerald-500" :
+                    item.assessments[0].percentage < 50 ? "text-red-500" :
+                    "text-pastel-pink-ink"
+                  }`}>
+                    {item.assessments[0].percentage}%
+                    {item.assessments[0].verdict && ` (${item.assessments[0].verdict})`}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Checklist items */}

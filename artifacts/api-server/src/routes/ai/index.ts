@@ -72,6 +72,20 @@ router.post("/ai/parse-resume", requireAuth, async (req, res): Promise<void> => 
   res.json(parsed);
 });
 
+// ─── POST /ai/evaluate-notes ──────────────────────────────────────────────────
+router.post("/ai/evaluate-notes", requireAuth, async (req, res): Promise<void> => {
+  const { notes, candidateRole } = req.body;
+  const { tenantId } = req.context;
+
+  if (!notes) {
+    res.status(400).json({ error: "notes are required" });
+    return;
+  }
+
+  const evaluation = await AiService.evaluateInterviewerNotes(notes, candidateRole || "Professional", tenantId);
+  res.json(evaluation);
+});
+
 // ─── POST /ai/screening-score ──────────────────────────────────────────────────
 router.post("/ai/screening-score", requireAuth, async (req, res): Promise<void> => {
   const { pipelineId } = req.body;

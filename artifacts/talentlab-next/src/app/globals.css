@@ -53,51 +53,51 @@
 :root {
   --radius: 1rem;
 
-  /* Premium Linear/Stripe Inspired Light Theme */
-  --background: oklch(0.99 0 0); /* Cream White #FCFCFC */
-  --foreground: oklch(0.2 0.01 260); /* Slate #0f172a */
+  /* Luxury Gold & Premium Black Theme */
+  --background: oklch(0.12 0.01 260); /* Default to dark background */
+  --foreground: oklch(0.95 0 0); /* Off-white text */
   
-  --card: oklch(1 0 0); /* Pure White */
-  --card-foreground: oklch(0.2 0.01 260);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2 0.01 260);
+  --card: oklch(0.15 0.01 260); /* Slightly lighter dark for cards */
+  --card-foreground: oklch(0.95 0 0);
+  --popover: oklch(0.15 0.01 260);
+  --popover-foreground: oklch(0.95 0 0);
 
-  /* Primary action: Deep Indigo */
-  --primary: oklch(0.28 0.04 260); /* Deep Indigo */
-  --primary-foreground: oklch(0.98 0 0);
+  /* Primary action: Primary Gold (#D4AF37) */
+  --primary: oklch(0.77 0.14 85); /* Gold */
+  --primary-foreground: oklch(0.12 0.01 260); /* Black text on gold */
   
-  --secondary: oklch(0.96 0.01 260); /* Soft slate bg */
-  --secondary-foreground: oklch(0.28 0.04 260);
+  --secondary: oklch(0.2 0.01 260); /* Soft dark slate bg */
+  --secondary-foreground: oklch(0.95 0 0);
   
-  --muted: oklch(0.96 0.01 260);
-  --muted-foreground: oklch(0.55 0.01 260); /* Lighter slate text */
+  --muted: oklch(0.2 0.01 260);
+  --muted-foreground: oklch(0.65 0.01 260);
   
-  --accent: oklch(0.96 0.01 260);
-  --accent-foreground: oklch(0.2 0.01 260);
+  --accent: oklch(0.2 0.01 260);
+  --accent-foreground: oklch(0.77 0.14 85); /* Gold text on accent */
   
   --destructive: oklch(0.5 0.2 25);
   --destructive-foreground: oklch(0.98 0 0);
 
-  --border: oklch(0.92 0.01 260);
-  --input: oklch(0.92 0.01 260);
-  --ring: oklch(0.28 0.04 260 / 0.2);
+  --border: oklch(0.25 0.01 260);
+  --input: oklch(0.25 0.01 260);
+  --ring: oklch(0.77 0.14 85 / 0.3); /* Gold ring */
 
-  /* Enterprise Accents */
-  --enterprise-indigo: oklch(0.55 0.2 260); /* Vibrant Blue/Indigo */
+  /* Enterprise Accents (Updated to luxury palette) */
+  --enterprise-indigo: oklch(0.77 0.14 85); /* Mapped to Gold for consistency */
   --enterprise-slate: oklch(0.4 0.02 260);
-  --enterprise-emerald: oklch(0.65 0.15 150);
-  --enterprise-amber: oklch(0.75 0.18 50);
+  --enterprise-emerald: oklch(0.77 0.14 85); /* Mapped to Gold */
+  --enterprise-amber: oklch(0.68 0.15 75); /* Darker Gold (#B8860B) */
   --enterprise-rose: oklch(0.6 0.2 25);
 
   /* Vercel/Linear style dark sidebar */
-  --sidebar: oklch(0.12 0.01 260);
+  --sidebar: oklch(0.1 0.01 260);
   --sidebar-foreground: oklch(0.95 0 0);
-  --sidebar-primary: oklch(0.98 0 0);
-  --sidebar-primary-foreground: oklch(0.12 0.01 260);
+  --sidebar-primary: oklch(0.77 0.14 85); /* Gold */
+  --sidebar-primary-foreground: oklch(0.1 0.01 260);
   --sidebar-accent: oklch(0.18 0.01 260);
-  --sidebar-accent-foreground: oklch(0.98 0 0);
+  --sidebar-accent-foreground: oklch(0.77 0.14 85);
   --sidebar-border: oklch(0.18 0.01 260);
-  --sidebar-ring: oklch(0.55 0.2 260);
+  --sidebar-ring: oklch(0.77 0.14 85);
 }
 
 .dark {
@@ -108,7 +108,7 @@
   --popover: oklch(0.15 0.01 260);
   --popover-foreground: oklch(0.95 0 0);
   
-  --primary: oklch(0.95 0 0);
+  --primary: oklch(0.77 0.14 85);
   --primary-foreground: oklch(0.12 0.01 260);
   
   --secondary: oklch(0.2 0.01 260);
@@ -118,11 +118,11 @@
   --muted-foreground: oklch(0.65 0.01 260);
   
   --accent: oklch(0.2 0.01 260);
-  --accent-foreground: oklch(0.95 0 0);
+  --accent-foreground: oklch(0.77 0.14 85);
   
-  --border: oklch(0.2 0.01 260);
-  --input: oklch(0.2 0.01 260);
-  --ring: oklch(0.95 0 0 / 0.2);
+  --border: oklch(0.25 0.01 260);
+  --input: oklch(0.25 0.01 260);
+  --ring: oklch(0.77 0.14 85 / 0.3);
 }
 
 @layer base {

@@ -9,7 +9,8 @@ import { authService } from "@/services/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles, Key, Mail, ShieldAlert } from "lucide-react";
+import { Sparkles, Key, Mail, ShieldAlert, Zap } from "lucide-react";
+import { Logo } from "@/components/Logo";
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<"login" | "register" | "forgot" | "reset">("login");
@@ -122,25 +123,21 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background transition-colors duration-300 relative overflow-hidden">
-      {/* Decorative gradients */}
-      <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-enterprise-indigo/10 blur-3xl pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-enterprise-slate/10 blur-3xl pointer-events-none" />
+      {/* Premium Dark Gold Gradients */}
+      <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-primary/5 blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-primary/5 blur-[100px] pointer-events-none" />
 
-      <Card className="w-full max-w-md glass-panel shadow-soft relative z-10 p-2 sm:p-4">
-        <CardHeader className="text-center space-y-2">
+      <Card className="w-full max-w-md glass-panel shadow-modal relative z-10 p-2 sm:p-4 border-border/40">
+        <CardHeader className="text-center space-y-4 pb-6">
           <div className="flex justify-center items-center gap-2 mb-2">
-            <div className="p-2.5 rounded-2xl bg-primary/10 text-primary">
-              <Sparkles className="h-5 w-5 text-enterprise-emerald" />
-            </div>
+            <Logo className="h-16 w-auto" />
           </div>
-          <CardTitle className="text-3xl font-extrabold tracking-tight text-foreground">
-            99 Placement <span className="text-enterprise-emerald font-light">RMS</span>
+          <CardTitle className="text-xl font-bold tracking-tight text-foreground">
+            Enterprise Recruitment OS
           </CardTitle>
-          <CardDescription className="text-sm text-muted-foreground">
-            {activeTab === "login" && "Access your recruitment dashboard"}
-            {activeTab === "register" && "Register your agency workspace"}
-            {activeTab === "forgot" && "Reset your portal access"}
-            {activeTab === "reset" && "Create a secure new password"}
+          <CardDescription className="text-sm text-muted-foreground flex items-center justify-center gap-1.5">
+            <Zap className="h-3.5 w-3.5 text-primary" />
+            Powered by AI Recruitment
           </CardDescription>
         </CardHeader>
 
@@ -187,7 +184,7 @@ export default function AuthPage() {
             </div>
           )}
           {successMsg && (
-            <div className="flex items-start gap-2.5 p-4 bg-enterprise-emerald/10 text-enterprise-emerald rounded-2xl text-xs border border-enterprise-emerald/20">
+            <div className="flex items-start gap-2.5 p-4 bg-primary/10 text-primary rounded-2xl text-xs border border-primary/20">
               <Sparkles className="h-4 w-4 shrink-0 mt-0.5" />
               <span>{successMsg}</span>
             </div>

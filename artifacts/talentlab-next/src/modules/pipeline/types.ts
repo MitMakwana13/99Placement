@@ -111,6 +111,11 @@ export interface PipelineItem {
       name: string;
     } | null;
   }>;
+  assessments?: Array<{
+    id: string;
+    percentage: number;
+    verdict: string | null;
+  }>;
 }
 
 export interface PipelineFilters {
