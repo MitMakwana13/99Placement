@@ -13,6 +13,7 @@ import {
   RatingUpdatedEvent,
 } from "../events/pipeline/pipeline.events";
 import { AppError } from "../utils/app-error";
+import { getSocketServer } from "../config/socket";
 
 export const PipelineService = {
 
@@ -143,6 +144,19 @@ export const PipelineService = {
         performedById
       )
     );
+
+    // 4.5. Real-time Socket Emission
+    try {
+      const io = getSocketServer();
+      io.to(`tenant_${tenantId}`).emit("pipeline:updated", {
+        candidateId: updated.candidateId,
+        stage: updated.stage,
+        updatedAt: updated.stageUpdatedAt.toISOString(),
+        recruiterId: performedById,
+      });
+    } catch (err) {
+      console.error("Socket emit failed", err);
+    }
 
     // 5. Stage-specific side events
     if (updated.stage === PipelineStage.REJECTED) {

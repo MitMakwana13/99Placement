@@ -16,9 +16,12 @@ import {
   JoiningScheduledEvent,
   CandidateJoinedEvent,
   CandidateNoShowEvent,
-  JoiningFollowupCreatedEvent,
+  JoiningFollowupCreatedEvent
 } from "./hiring-decision.events";
 import { logger } from "../../config/logger";
+import { EmailService } from "../../services/email.service";
+import { CalendarService } from "../../services/calendar.service";
+import { User, Candidate } from "@prisma/client";
 
 // ── Interview Handlers ────────────────────────────────────────────────────────
 
@@ -47,6 +50,60 @@ export class InterviewScheduledTimelineHandler implements IEventHandler<Intervie
         metadata: { interviewId: event.interviewId },
       },
     });
+
+    // Generate Calendar invite and send email
+    try {
+      const interview = await prisma.interview.findUnique({
+        where: { id: event.interviewId },
+        include: { 
+          interviewer: true,
+          pipeline: { include: { candidate: true } }
+        }
+      });
+
+      if (interview && interview.pipeline.candidate.email) {
+        let meetingLink = interview.meetingLink;
+        if (interview.mode === "VIRTUAL" && !meetingLink) {
+          meetingLink = CalendarService.generateMeetingLink();
+          await prisma.interview.update({
+            where: { id: interview.id },
+            data: { meetingLink }
+          });
+        }
+
+        const icsContent = await CalendarService.generateICS({
+          title: `Interview: ${event.title}`,
+          description: `You have an interview scheduled.\n\nMeeting Link: ${meetingLink || "TBD"}`,
+          location: meetingLink || interview.location || "TBD",
+          start: event.scheduledAt,
+          durationMinutes: interview.durationMin || 60,
+          organizerName: interview.interviewer?.name || "TalentLab Recruiter",
+          organizerEmail: interview.interviewer?.email || "no-reply@talentlab.com",
+          attendees: [
+            { name: interview.pipeline.candidate.name, email: interview.pipeline.candidate.email }
+          ]
+        });
+
+        await EmailService.sendCustomEmail(
+          interview.pipeline.candidate.email,
+          `Interview Scheduled: ${event.title}`,
+          `<p>Hi ${interview.pipeline.candidate.name},</p><p>Your interview is scheduled for ${event.scheduledAt.toLocaleString()}.</p><p>Please find the calendar invite attached.</p>`,
+          `Hi ${interview.pipeline.candidate.name},\nYour interview is scheduled for ${event.scheduledAt.toLocaleString()}.\nPlease find the calendar invite attached.`,
+          event.tenantId,
+          event.pipelineId,
+          event.performedById,
+          [
+            {
+              filename: "invite.ics",
+              content: icsContent,
+              contentType: "text/calendar"
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      logger.error({ error }, "Failed to generate ICS and send interview email");
+    }
   }
 }
 

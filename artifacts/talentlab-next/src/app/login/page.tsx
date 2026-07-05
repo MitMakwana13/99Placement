@@ -123,18 +123,18 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background transition-colors duration-300 relative overflow-hidden">
       {/* Decorative gradients */}
-      <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-pastel-pink/10 blur-3xl pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-pastel-blue/10 blur-3xl pointer-events-none" />
+      <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-enterprise-indigo/10 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-enterprise-slate/10 blur-3xl pointer-events-none" />
 
-      <Card className="w-full max-w-md border border-border shadow-2xl relative z-10 p-2 sm:p-4">
+      <Card className="w-full max-w-md glass-panel shadow-soft relative z-10 p-2 sm:p-4">
         <CardHeader className="text-center space-y-2">
           <div className="flex justify-center items-center gap-2 mb-2">
-            <div className="p-2.5 rounded-2xl bg-primary text-primary-foreground">
-              <Sparkles className="h-5 w-5 text-pastel-pink" />
+            <div className="p-2.5 rounded-2xl bg-primary/10 text-primary">
+              <Sparkles className="h-5 w-5 text-enterprise-emerald" />
             </div>
           </div>
           <CardTitle className="text-3xl font-extrabold tracking-tight text-foreground">
-            TalentLab <span className="text-pastel-pink font-light">RMS</span>
+            99 Placement <span className="text-enterprise-emerald font-light">RMS</span>
           </CardTitle>
           <CardDescription className="text-sm text-muted-foreground">
             {activeTab === "login" && "Access your recruitment dashboard"}
@@ -187,7 +187,7 @@ export default function AuthPage() {
             </div>
           )}
           {successMsg && (
-            <div className="flex items-start gap-2.5 p-4 bg-pastel-green text-pastel-green-ink rounded-2xl text-xs border border-pastel-green-ink/10">
+            <div className="flex items-start gap-2.5 p-4 bg-enterprise-emerald/10 text-enterprise-emerald rounded-2xl text-xs border border-enterprise-emerald/20">
               <Sparkles className="h-4 w-4 shrink-0 mt-0.5" />
               <span>{successMsg}</span>
             </div>

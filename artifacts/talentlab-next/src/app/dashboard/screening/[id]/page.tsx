@@ -480,7 +480,7 @@ export default function ScreeningDetailPage() {
                   <span>SYSTEM AUTO LOG</span>
                   <span>{new Date(screening.createdAt).toLocaleString()}</span>
                 </div>
-                <p>Initial screening session was registered in TalentLab ATS.</p>
+                <p>Initial screening session was registered in 99 Placement OS.</p>
               </div>
 
               {screening.notes && (

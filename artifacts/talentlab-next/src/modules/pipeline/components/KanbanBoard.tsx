@@ -114,9 +114,12 @@ export function KanbanBoard({ items, onCardClick }: KanbanBoardProps) {
       </div>
 
       {/* Floating Drag Overlay Preview */}
-      <DragOverlay dropAnimation={null}>
+      <DragOverlay dropAnimation={{
+        duration: 250,
+        easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+      }}>
         {activeItem ? (
-          <div className="w-72 md:w-80 rotate-[2deg] scale-[1.02] shadow-xl border-primary ring-2 ring-primary/20 pointer-events-none">
+          <div className="w-72 md:w-80 rotate-[3deg] scale-[1.03] shadow-modal border-primary/50 ring-2 ring-primary/20 pointer-events-none rounded-2xl glass-panel">
             <KanbanCard item={activeItem} onClick={() => {}} />
           </div>
         ) : null}

@@ -13,6 +13,7 @@ import {
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../../middleware/auth";
 import { AiService } from "../../services/ai.service";
+import { AiAgentService } from "../../services/ai-agent.service";
 import { prisma } from "@workspace/db-prisma";
 import logger from "../../lib/logger";
 import { env } from "../../config/env";
@@ -58,7 +59,7 @@ router.post("/ai/parse-resume", requireAuth, async (req, res): Promise<void> => 
     return;
   }
 
-  const parsed = await AiService.parseResume(resumeText);
+  const parsed = await AiService.parseResume(resumeText, tenantId);
 
   if (pipelineId) {
     const analysis = await upsertAnalysis(tenantId, pipelineId);
@@ -112,7 +113,7 @@ Location: ${pipeline.job.location}
 JD: ${pipeline.job.jdText ?? ""}
   `.trim();
 
-  const scoreResult = await AiService.screeningScore(candidateProfile, jobDescription);
+  const scoreResult = await AiService.screeningScore(candidateProfile, jobDescription, tenantId);
 
   const analysis = await upsertAnalysis(tenantId, pipelineId);
   await db
@@ -147,6 +148,7 @@ router.post("/ai/match-score", requireAuth, async (req, res): Promise<void> => {
   const matchResult = await AiService.resumeJobMatch(
     { name: pipeline.candidate.name, skills: pipeline.candidate.skills, experienceYears: pipeline.candidate.experienceYears },
     `${pipeline.job.title} ${pipeline.job.description ?? ""} ${pipeline.job.jdText ?? ""}`,
+    tenantId
   );
 
   const analysis = await upsertAnalysis(tenantId, pipelineId);
@@ -193,6 +195,7 @@ router.post("/ai/rank-candidates", requireAuth, async (req, res): Promise<void> 
   const ranked = await AiService.rankCandidates(
     candidates,
     `${job.title} ${job.description ?? ""} ${job.jdText ?? ""}`,
+    tenantId
   );
 
   // Update rankScore per pipeline
@@ -229,16 +232,16 @@ router.post("/ai/generate-summary/:candidateId", requireAuth, async (req, res): 
     skills: candidate.skills,
     location: candidate.location,
     summary: candidate.summary,
-  });
+  }, tenantId);
 
-  // Save summary back to candidate
-  await prisma.candidate.update({ where: { id: candidateId }, data: { summary } });
+  // Save summary back to candidate as stringified JSON
+  await prisma.candidate.update({ where: { id: candidateId }, data: { summary: JSON.stringify(summary) } });
 
   if (pipelineId) {
     const analysis = await upsertAnalysis(tenantId, pipelineId);
     await db
       .update(aiAnalysesTable)
-      .set({ candidateSummary: summary, updatedAt: new Date() })
+      .set({ candidateSummary: JSON.stringify(summary), updatedAt: new Date() })
       .where(eq(aiAnalysesTable.id, analysis.id));
   }
 
@@ -269,6 +272,7 @@ router.post("/ai/interview-questions", requireAuth, async (req, res): Promise<vo
     { name: pipeline.candidate.name, skills: pipeline.candidate.skills, experienceYears: pipeline.candidate.experienceYears, currentRole: pipeline.candidate.currentRole },
     `${pipeline.job.title} ${pipeline.job.description ?? ""}`,
     interviewType ?? "HR",
+    tenantId
   );
 
   const analysis = await upsertAnalysis(tenantId, pipelineId);
@@ -300,7 +304,7 @@ router.post("/ai/assessment-recommendations/:testId", requireAuth, async (req, r
     verdict: test.verdict,
     categoryScores: test.categoryScores,
     candidateName: test.pipeline.candidate.name,
-  });
+  }, tenantId);
 
   // Save to ai_analyses + to assessment test recommendations field
   await prisma.assessmentTest.update({
@@ -315,6 +319,52 @@ router.post("/ai/assessment-recommendations/:testId", requireAuth, async (req, r
     .where(eq(aiAnalysesTable.id, analysis.id));
 
   res.json({ recommendations });
+});
+
+// ─── POST /ai/copilot ────────────────────────────────────────────────────────
+router.post("/ai/copilot", requireAuth, async (req, res): Promise<void> => {
+  const { message, contextOverride } = req.body;
+  const { tenantId, userId } = req.context;
+
+  if (!message) {
+    res.status(400).json({ error: "Message is required" });
+    return;
+  }
+
+  // Build real-time context
+  let contextData = contextOverride || "";
+  
+  if (!contextOverride) {
+    // Fetch high level context for the copilot to be aware of
+    const [jobsCount, candidatesCount, pipelineCount] = await Promise.all([
+      prisma.job.count({ where: { tenantId } }),
+      prisma.candidate.count({ where: { tenantId } }),
+      prisma.candidatePipeline.count({ where: { tenantId } }),
+    ]);
+    
+    // Fetch top 5 active jobs
+    const activeJobs = await prisma.job.findMany({
+      where: { tenantId, status: "OPEN" },
+      take: 5,
+      select: { title: true, company: { select: { name: true } } }
+    });
+
+    contextData = `
+Workspace Stats:
+- Total Jobs: ${jobsCount}
+- Total Candidates: ${candidatesCount}
+- Active Pipeline Entries: ${pipelineCount}
+- Recent Open Jobs: ${activeJobs.map(j => `${j.title} at ${j.company?.name}`).join(", ")}
+    `;
+  }
+
+  try {
+    const copilotResponse = await AiAgentService.chatWithCopilot(message, contextData, tenantId, userId);
+    res.json(copilotResponse);
+  } catch (error: any) {
+    logger.error(`Copilot error: ${error.message}`);
+    res.status(500).json({ error: "Failed to generate copilot response." });
+  }
 });
 
 export default router;

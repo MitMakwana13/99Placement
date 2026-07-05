@@ -4,6 +4,20 @@ import { candidatesTable, candidatePipelineTable } from "@workspace/db/schema";
 import { eq, and, isNull, ilike, or } from "drizzle-orm";
 import { requireAuth } from "../../middleware/auth";
 import { invalidateCache } from "../../middleware/cache.middleware";
+import multer from "multer";
+import { prisma } from "@workspace/db-prisma";
+import fs from "fs";
+import path from "path";
+import { domainEventBus } from "../../events/event-bus";
+import { DomainEvent } from "../../events/domain-event";
+
+// Ensure uploads directory exists
+const uploadDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const upload = multer({ dest: uploadDir });
 
 const router: IRouter = Router();
 
@@ -114,6 +128,71 @@ router.delete("/candidates/:id", requireAuth, async (req, res): Promise<void> =>
   });
 
   res.sendStatus(204);
+});
+
+// ─── EPIC 2: ASYNCHRONOUS RESUME UPLOAD ──────────────────────────────────────
+router.post("/candidates/upload", requireAuth, upload.single("resume"), async (req, res): Promise<void> => {
+  const { tenantId, userId } = req.context;
+  const file = req.file;
+
+  if (!file) {
+    res.status(400).json({ error: "No resume file uploaded" });
+    return;
+  }
+
+  try {
+    // 1. Create a "Pending" Candidate shell
+    const placeholderName = file.originalname.split(".")[0] || "Unknown Candidate";
+    const candidate = await prisma.candidate.create({
+      data: {
+        tenantId,
+        name: placeholderName,
+        email: `pending_${Date.now()}@processing.local`, // Temporary email
+        source: "PORTAL",
+        summary: "Resume is currently being processed by the AI Resume Intelligence Engine...",
+      }
+    });
+
+    // 2. Create CandidateDocument
+    const doc = await prisma.candidateDocument.create({
+      data: {
+        tenantId,
+        candidateId: candidate.id,
+        name: file.originalname,
+        documentType: "RESUME",
+        fileUrl: file.path, // Local path for MVP
+        fileSize: file.size,
+      }
+    });
+
+    // 2. Fire Domain Event to trigger asynchronous pipeline
+    class ResumeUploadedEvent implements DomainEvent {
+      readonly eventName = "RESUME_UPLOADED";
+      readonly eventId = crypto.randomUUID();
+      readonly occurredAt = new Date();
+      constructor(
+        public readonly tenantId: string,
+        public readonly payload: any
+      ) {}
+    }
+
+    await domainEventBus.publish(new ResumeUploadedEvent(tenantId, {
+      candidateId: candidate.id,
+      documentId: doc.id,
+      filePath: file.path,
+      mimeType: file.mimetype,
+      uploadedBy: userId,
+    }));
+
+    res.status(202).json({
+      message: "Resume uploaded successfully. Processing in background.",
+      candidateId: candidate.id,
+      documentId: doc.id
+    });
+  } catch (error: any) {
+    console.error("Upload error:", error);
+    res.status(500).json({ error: "Failed to process upload" });
+  }
 });
 
 router.post("/candidates/:id/apply/:requirementId", requireAuth, async (req, res): Promise<void> => {

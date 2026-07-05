@@ -47,6 +47,31 @@ router.get("/health", async (_req, res) => {
   res.status(200).json(statusPayload);
 });
 
+// Liveness Probe (Is the process running?)
+router.get("/health/liveness", (_req, res) => {
+  res.status(200).json({ status: "up", uptime: Math.floor(process.uptime()) });
+});
+
+// Readiness Probe (Are dependencies available?)
+router.get("/health/readiness", async (_req, res) => {
+  let dbStatus = "disconnected";
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    dbStatus = "connected";
+  } catch (err) {
+    dbStatus = "disconnected";
+  }
+
+  const redisStatus = redisCache.isCacheEnabled() ? "connected" : "disconnected";
+
+  if (dbStatus === "disconnected" || redisStatus === "disconnected") {
+    res.status(503).json({ status: "degraded", database: dbStatus, redis: redisStatus });
+    return;
+  }
+
+  res.status(200).json({ status: "ready", database: dbStatus, redis: redisStatus });
+});
+
 // Retain legacy healthz for backward compatibility
 router.get("/healthz", (_req, res) => {
   const data = HealthCheckResponse.parse({ status: "ok" });

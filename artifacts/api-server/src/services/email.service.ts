@@ -1,16 +1,30 @@
 import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import { env } from "../config/env";
 import { logger } from "../config/logger";
+import { prisma } from "@workspace/db-prisma";
 
 interface MailOptions {
   to: string;
   subject: string;
   html: string;
   text?: string;
+  attachments?: any[];
 }
 
 export class EmailService {
   private static transporter: nodemailer.Transporter | null = null;
+  private static resendClient: Resend | null = null;
+
+  private static getResendClient(): Resend | null {
+    if (this.resendClient) return this.resendClient;
+    if (process.env.RESEND_API_KEY) {
+      this.resendClient = new Resend(process.env.RESEND_API_KEY);
+      logger.info("Resend email client initialized successfully");
+      return this.resendClient;
+    }
+    return null;
+  }
 
   private static getTransporter(): nodemailer.Transporter {
     if (this.transporter) {
@@ -42,18 +56,41 @@ export class EmailService {
    */
   private static async sendMail(options: MailOptions): Promise<void> {
     try {
-      const transporter = this.getTransporter();
-      const from = env.SMTP_FROM || "no-reply@talentlabrms.com";
+      const fromAddress = process.env.EMAIL_FROM_ADDRESS || env.SMTP_FROM || "no-reply@talentlabrms.com";
+      const fromName = process.env.EMAIL_FROM_NAME || "TalentLab RMS";
+      const fromStr = `"${fromName}" <${fromAddress}>`;
 
-      const info = await transporter.sendMail({
-        from: `"TalentLab RMS" <${from}>`,
-        to: options.to,
-        subject: options.subject,
-        html: options.html,
-        text: options.text || "Please switch to an HTML compatible email viewer.",
-      });
+      const resend = this.getResendClient();
 
-      logger.info({ messageId: info.messageId, to: options.to, subject: options.subject }, "Email sent successfully");
+      if (resend) {
+        // Send via Resend
+        const { error, data } = await resend.emails.send({
+          from: fromStr,
+          to: [options.to],
+          subject: options.subject,
+          html: options.html,
+          text: options.text || "Please switch to an HTML compatible email viewer.",
+          attachments: options.attachments,
+        });
+
+        if (error) {
+          throw new Error(`Resend Error: ${error.message}`);
+        }
+        logger.info({ id: data?.id, to: options.to, subject: options.subject }, "Email sent successfully via Resend");
+      } else {
+        // Fallback to SMTP Nodemailer
+        const transporter = this.getTransporter();
+        const info = await transporter.sendMail({
+          from: fromStr,
+          to: options.to,
+          subject: options.subject,
+          html: options.html,
+          text: options.text || "Please switch to an HTML compatible email viewer.",
+          attachments: options.attachments,
+        });
+
+        logger.info({ messageId: info.messageId, to: options.to, subject: options.subject }, "Email sent successfully via SMTP");
+      }
     } catch (err: any) {
       logger.error({ error: err.message, to: options.to, subject: options.subject }, "Failed to send email");
       // Don't crash the server, just log the error in production
@@ -254,5 +291,76 @@ export class EmailService {
     `;
 
     await this.sendMail({ to, subject, html, text });
+  }
+
+  /**
+   * 7. Send Workspace Member Invite
+   */
+  static async sendWorkspaceInviteEmail(
+    to: string,
+    inviteUrl: string,
+    workspaceName: string,
+    roleName: string
+  ): Promise<void> {
+    const subject = `You're invited to join ${workspaceName} on TalentLab`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="color: #7c3aed; margin-bottom: 16px;">You're Invited to TalentLab!</h2>
+        <p>You've been invited to join <strong>${workspaceName}</strong> as a <strong>${roleName}</strong>.</p>
+        <p>Click the button below to accept your invitation and create your account. This link expires in 72 hours.</p>
+        <div style="margin: 30px 0; text-align: center;">
+          <a href="${inviteUrl}" style="background-color: #7c3aed; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+            Accept Invitation
+          </a>
+        </div>
+        <p style="color: #6b7280; font-size: 12px;">If you didn't expect this invitation, you can safely ignore this email.</p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <p style="color: #94a3b8; font-size: 12px; text-align: center;">TalentLab RMS · 99 Placement</p>
+      </div>
+    `;
+    await this.sendMail({ to, subject, html });
+  }
+
+  /**
+   * 8. Send Custom Email & Log to Timeline
+   */
+  static async sendCustomEmail(
+    to: string,
+    subject: string,
+    html: string,
+    text: string,
+    tenantId: string,
+    pipelineId: string,
+    performedById?: string,
+    attachments?: any[]
+  ): Promise<void> {
+    await this.sendMail({ to, subject, html, text, attachments });
+
+    // Log to Timeline
+    try {
+      const pipeline = await prisma.candidatePipeline.findUnique({
+        where: { id: pipelineId },
+        select: { candidateId: true }
+      });
+      if (pipeline) {
+        await prisma.candidateTimeline.create({
+          data: {
+            tenantId,
+            candidateId: pipeline.candidateId,
+            eventType: "COMMUNICATION_EMAIL",
+            title: `Email Sent: ${subject}`,
+            description: "A custom email was sent to the candidate.",
+            metadata: {
+              to,
+              subject,
+              bodyHtml: html
+            },
+            performedById
+          }
+        });
+      }
+    } catch (err) {
+      logger.error({ err }, "Failed to log custom email to timeline");
+    }
   }
 }

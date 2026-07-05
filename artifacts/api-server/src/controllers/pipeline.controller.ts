@@ -55,6 +55,16 @@ export class PipelineController {
       const id = req.params.id as string;
       const body = UpdateStageSchema.parse(req.body);
       const result = await PipelineService.updateStage(tenantId, id, body as any, userId);
+      
+      import("../services/workflow.service").then(({ WorkflowEngine }) => {
+        WorkflowEngine.triggerEvent(tenantId, "PipelineStageChanged", { 
+          pipelineId: id, 
+          newStage: body.newStage, 
+          candidateId: result.candidateId,
+          jobId: result.jobId
+        });
+      });
+
       sendSuccess(res, result);
     } catch (err) { next(err); }
   }

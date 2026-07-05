@@ -26,6 +26,9 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
+import { CopilotChat } from "@/components/CopilotChat";
+import { CommandPalette } from "@/components/ui/command-palette";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface SidebarItem {
   name: string;
@@ -44,6 +47,7 @@ const sidebarItems: SidebarItem[] = [
   { name: "Interviews", href: "/dashboard/interviews", icon: CalendarDays },
   { name: "Offers", href: "/dashboard/offers", icon: FileSignature },
   { name: "Joining", href: "/dashboard/joining", icon: UserCheck },
+  { name: "Workflows", href: "/dashboard/workflows", icon: Settings },
   { name: "Reports", href: "/dashboard/reports", icon: BarChart3 },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
@@ -100,11 +104,11 @@ export default function DashboardLayout({
       >
         <div className="flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center space-x-2.5">
-            <div className="p-1.5 rounded-xl bg-primary-foreground text-primary">
-              <Sparkles className="h-4 w-4 text-pastel-pink" />
+            <div className="p-1.5 rounded-xl bg-primary-foreground/10 text-primary">
+              <Sparkles className="h-4.5 w-4.5 text-enterprise-emerald" />
             </div>
-            <span className="text-lg font-bold tracking-tight text-white">
-              TalentLab <span className="text-pastel-pink font-light">RMS</span>
+            <span className="text-xl font-extrabold tracking-tighter text-white">
+              99 Placement <span className="text-enterprise-emerald font-medium">RMS</span>
             </span>
           </Link>
           <button
@@ -130,7 +134,7 @@ export default function DashboardLayout({
                     : "text-sidebar-foreground/80 hover:text-white hover:bg-sidebar-accent/40"
                 }`}
               >
-                <Icon className={`h-4.5 w-4.5 ${isActive ? "text-pastel-pink" : ""}`} />
+                <Icon className={`h-4.5 w-4.5 ${isActive ? "text-enterprise-emerald" : ""}`} />
                 <span className="text-sm">{item.name}</span>
               </Link>
             );
@@ -141,7 +145,7 @@ export default function DashboardLayout({
         <div className="border-t border-sidebar-border/40 pt-4 space-y-3">
           <div className="flex items-center gap-3 px-2">
             <div className="h-9 w-9 rounded-xl bg-sidebar-accent flex items-center justify-center text-sidebar-primary-foreground font-semibold">
-              <User className="h-4.5 w-4.5 text-pastel-pink" />
+              <User className="h-4.5 w-4.5 text-enterprise-emerald" />
             </div>
             <div className="overflow-hidden">
               <p className="text-xs font-bold text-white truncate">{user.name}</p>
@@ -170,7 +174,7 @@ export default function DashboardLayout({
               <Menu className="h-5 w-5" />
             </button>
             <span className="text-xs font-medium text-muted-foreground hidden sm:inline-block">
-              Consultancy Portal / {pathname.replace("/dashboard", "").replace("/", "") || "Home"}
+              99 Placement / {pathname.replace("/dashboard", "").replace("/", "") || "Home"}
             </span>
           </div>
 
@@ -186,18 +190,35 @@ export default function DashboardLayout({
 
             {/* Tenant indicator */}
             <div className="hidden md:flex items-center gap-1 bg-muted/40 px-3 py-1.5 rounded-full text-xs font-semibold border border-border/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-pastel-green inline-block animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-enterprise-emerald inline-block animate-pulse" />
               <span className="text-muted-foreground">Tenant:</span>
               <span className="font-mono text-foreground font-bold">{user.tenantId.substring(0, 8)}...</span>
             </div>
           </div>
         </header>
 
-        {/* Dynamic page context */}
-        <main className="flex-1 p-6 md:p-8 overflow-y-auto space-y-6">
-          {children}
+        {/* Dynamic page context with seamless page transitions */}
+        <main className="flex-1 p-6 md:p-8 overflow-y-auto space-y-6 relative">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={pathname}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+              className="h-full"
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
+
+      {/* Global Command Palette */}
+      <CommandPalette />
+
+      {/* AI Copilot floating widget */}
+      <CopilotChat />
     </div>
   );
 }

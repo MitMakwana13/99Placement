@@ -111,6 +111,55 @@ export class AssessmentAssignedNotificationHandler implements IEventHandler<Asse
   }
 }
 
+import { EmailService } from "../../services/email.service";
+
+export class AssessmentAssignedEmailHandler implements IEventHandler<AssessmentAssignedEvent> {
+  async handle(event: AssessmentAssignedEvent): Promise<void> {
+    try {
+      const test = await prisma.assessmentTest.findUnique({
+        where: { id: event.testId },
+        include: {
+          pipeline: {
+            include: {
+              candidate: true,
+            },
+          },
+        },
+      });
+
+      if (!test || !test.pipeline?.candidate) {
+        logger.error(`AssessmentAssignedEmailHandler: Test or Candidate not found for testId=${event.testId}`);
+        return;
+      }
+
+      const candidate = test.pipeline.candidate;
+      let testName = "Skill Assessment";
+
+      if (test.templateId) {
+        const template = await prisma.assessmentTemplate.findUnique({
+          where: { id: test.templateId },
+        });
+        if (template) {
+          testName = template.name;
+        }
+      }
+
+      const clientUrl = process.env.CLIENT_URL || "http://localhost:3000";
+      const inviteUrl = `${clientUrl}/assessment/take/${test.id}`;
+
+      logger.info(`Sending assessment email to candidate: ${candidate.email} for test ${testName}`);
+      
+      await EmailService.sendAssessmentInviteEmail(candidate.email, {
+        candidateName: candidate.name,
+        testName,
+        inviteUrl,
+      });
+    } catch (err: any) {
+      logger.error(`AssessmentAssignedEmailHandler Error: ${err.message}`);
+    }
+  }
+}
+
 export class AssessmentAssignedAnalyticsHandler implements IEventHandler<AssessmentAssignedEvent> {
   async handle(event: AssessmentAssignedEvent): Promise<void> {
     logger.info(`Analytics: [${event.eventName}] testId=${event.testId} attempt=${event.attemptNumber}`);

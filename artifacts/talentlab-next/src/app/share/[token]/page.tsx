@@ -110,8 +110,8 @@ export default function SharePage() {
       {/* Header */}
       <div className="bg-gray-900 border-b border-gray-800 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">TL</div>
-          <span className="font-semibold text-gray-200">TalentLab — Candidate Review</span>
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">99</div>
+          <span className="font-semibold text-gray-200">99 Placement — Candidate Review</span>
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-500">
           <span>🔒 Secure Link</span>
@@ -335,7 +335,7 @@ export default function SharePage() {
         )}
 
         <p className="text-center text-xs text-gray-600 pb-4">
-          Powered by TalentLab RMS · 99 Placement · Secure & Confidential
+          Powered by 99 Placement RMS · Secure & Confidential
         </p>
       </div>
     </div>

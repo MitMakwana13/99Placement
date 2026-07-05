@@ -9,7 +9,7 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={twMerge(
-      "rounded-3xl border border-border bg-card text-card-foreground shadow-sm transition-all duration-300",
+      "rounded-3xl border border-border/60 bg-card text-card-foreground shadow-soft transition-all duration-300",
       className
     )}
     {...props}

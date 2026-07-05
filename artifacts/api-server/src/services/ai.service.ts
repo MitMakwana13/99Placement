@@ -1,14 +1,8 @@
-/**
- * AI Service — Provider-Agnostic Adapter
- *
- * Reads AI_PROVIDER, AI_API_KEY, AI_BASE_URL, AI_MODEL from environment.
- * Supports: openai, anthropic, gemini, custom (any OpenAI-compatible endpoint).
- *
- * NO API KEYS ARE HARDCODED. All configuration is via environment variables.
- */
-
 import { env } from "../config/env";
 import logger from "../lib/logger";
+import { prisma } from "@workspace/db-prisma";
+import { SubscriptionService } from "./subscription.service";
+import { AppError } from "../utils/app-error";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,7 +29,12 @@ export interface ScreeningScoreResult {
 }
 
 export interface MatchScoreResult {
-  matchPercentage: number; // 0-100
+  matchPercentage: number; // 0-100 overall
+  skillMatch: number;      // 0-100
+  experienceMatch: number; // 0-100
+  locationMatch: number;   // 0-100
+  salaryMatch: number;     // 0-100
+  educationMatch: number;  // 0-100
   matchedSkills: string[];
   missingSkills: string[];
   summary: string;
@@ -48,11 +47,10 @@ export interface RankedCandidate {
   reasoning: string;
 }
 
-// ─── Provider URL Resolution ──────────────────────────────────────────────────
+// ─── Provider URL & Model Resolution ──────────────────────────────────────────
 
-function getBaseUrl(): string {
-  if (env.AI_BASE_URL) return env.AI_BASE_URL;
-  switch (env.AI_PROVIDER) {
+function getDefaultBaseUrl(provider: string): string {
+  switch (provider) {
     case "anthropic": return "https://api.anthropic.com/v1";
     case "gemini":    return "https://generativelanguage.googleapis.com/v1beta";
     case "openai":
@@ -60,9 +58,8 @@ function getBaseUrl(): string {
   }
 }
 
-function getDefaultModel(): string {
-  if (env.AI_MODEL) return env.AI_MODEL;
-  switch (env.AI_PROVIDER) {
+function getDefaultModel(provider: string): string {
+  switch (provider) {
     case "anthropic": return "claude-3-haiku-20240307";
     case "gemini":    return "gemini-1.5-flash";
     case "custom":    return "gpt-4o-mini";
@@ -71,21 +68,60 @@ function getDefaultModel(): string {
   }
 }
 
-// ─── Core HTTP Call ───────────────────────────────────────────────────────────
+// ─── Core HTTP Call with Tenant Isolation & Settings Overrides ──────────────────
 
-async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  if (!env.AI_API_KEY) {
-    logger.warn("AI_API_KEY is not set — returning mock AI response");
-    return JSON.stringify({ error: "AI_API_KEY not configured" });
+async function callAI(
+  systemPrompt: string,
+  userPrompt: string,
+  tenantId?: string
+): Promise<string> {
+  let provider = env.AI_PROVIDER || "openai";
+  let apiKey = env.AI_API_KEY;
+  let baseUrl = env.AI_BASE_URL || getDefaultBaseUrl(provider);
+  let model = env.AI_MODEL || getDefaultModel(provider);
+
+  // If a tenant ID is supplied, check for custom keys / configurations
+  if (tenantId) {
+    try {
+      const setting = await prisma.tenantSetting.findFirst({
+        where: { tenantId },
+      });
+
+      if (setting) {
+        if (setting.aiProvider) {
+          provider = setting.aiProvider;
+        }
+        if (setting.aiModel) {
+          model = setting.aiModel;
+        }
+        if (setting.aiBaseUrl) {
+          baseUrl = setting.aiBaseUrl;
+        } else if (setting.aiProvider) {
+          baseUrl = getDefaultBaseUrl(setting.aiProvider);
+        }
+
+        if (setting.aiApiKeyEncrypted) {
+          try {
+            // Decrypt / Decode the key
+            apiKey = Buffer.from(setting.aiApiKeyEncrypted, "base64").toString("utf-8");
+          } catch (decErr: any) {
+            logger.error(`Failed to decrypt tenant AI key for: ${tenantId}: ${decErr.message}`);
+          }
+        }
+      }
+    } catch (dbErr: any) {
+      logger.error(`Error loading tenant settings in AI service: ${dbErr.message}`);
+    }
   }
 
-  const model = getDefaultModel();
-  const baseUrl = getBaseUrl();
+  if (!apiKey) {
+    throw AppError.badRequest(`AI API key is not configured for provider ${provider}`);
+  }
 
   try {
-    // Gemini uses a different API format
-    if (env.AI_PROVIDER === "gemini") {
-      const url = `${baseUrl}/models/${model}:generateContent?key=${env.AI_API_KEY}`;
+    // 1. Gemini Client Format
+    if (provider === "gemini") {
+      const url = `${baseUrl}/models/${model}:generateContent?key=${apiKey}`;
       const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -100,13 +136,13 @@ async function callAI(systemPrompt: string, userPrompt: string): Promise<string>
       return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
     }
 
-    // Anthropic
-    if (env.AI_PROVIDER === "anthropic") {
+    // 2. Anthropic Client Format
+    if (provider === "anthropic") {
       const response = await fetch(`${baseUrl}/messages`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": env.AI_API_KEY,
+          "x-api-key": apiKey,
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
@@ -120,12 +156,12 @@ async function callAI(systemPrompt: string, userPrompt: string): Promise<string>
       return data?.content?.[0]?.text ?? "{}";
     }
 
-    // OpenAI / Custom (OpenAI-compatible)
+    // 3. OpenAI / Custom compatible format
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${env.AI_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model,
@@ -141,7 +177,7 @@ async function callAI(systemPrompt: string, userPrompt: string): Promise<string>
     const data = await response.json() as any;
     return data?.choices?.[0]?.message?.content ?? "{}";
   } catch (err: any) {
-    logger.error(`AI call failed [${env.AI_PROVIDER}]: ${err.message}`);
+    logger.error(`AI call failed [${provider}]: ${err.message}`);
     throw new Error(`AI service error: ${err.message}`);
   }
 }
@@ -160,14 +196,23 @@ export const AiService = {
   /**
    * Parse resume text → structured candidate profile
    */
-  async parseResume(resumeText: string): Promise<ParsedResume> {
+  async parseResume(resumeText: string, tenantId?: string): Promise<ParsedResume> {
+    if (tenantId) {
+      await SubscriptionService.checkUsageLimit(tenantId, "resume_parses");
+    }
+
     const system = `You are an expert resume parser. Extract structured information from the resume text.
 Return ONLY valid JSON with this structure:
 { "name": string, "email": string, "phone": string, "currentRole": string, "experienceYears": number,
   "skills": string[], "education": [{"degree": string, "institution": string, "year": number}],
   "experience": [{"company": string, "role": string, "duration": string}], "summary": string }`;
 
-    const raw = await callAI(system, `Parse this resume:\n\n${resumeText}`);
+    const raw = await callAI(system, `Parse this resume:\n\n${resumeText}`, tenantId);
+    
+    if (tenantId) {
+      await SubscriptionService.incrementUsage(tenantId, "resume_parses");
+    }
+
     return safeParse<ParsedResume>(raw, { skills: [], education: [], experience: [] });
   },
 
@@ -177,7 +222,12 @@ Return ONLY valid JSON with this structure:
   async screeningScore(
     candidateProfile: Record<string, any>,
     jobDescription: string,
+    tenantId?: string
   ): Promise<ScreeningScoreResult> {
+    if (tenantId) {
+      await SubscriptionService.checkUsageLimit(tenantId, "ai_credits");
+    }
+
     const system = `You are a senior recruitment analyst. Score the candidate against the job on a scale of 1-10 for each dimension.
 Return ONLY valid JSON:
 { "communication": number, "experience": number, "skills": number, "education": number, "overall": number,
@@ -193,7 +243,12 @@ ${jobDescription}
 
 Analyze and return the JSON score.`;
 
-    const raw = await callAI(system, userPrompt);
+    const raw = await callAI(system, userPrompt, tenantId);
+    
+    if (tenantId) {
+      await SubscriptionService.incrementUsage(tenantId, "ai_credits");
+    }
+
     const result = safeParse<ScreeningScoreResult>(raw, {
       communication: 5, experience: 5, skills: 5, education: 5, overall: 5,
       recommendation: "HOLD", reasoning: "Unable to analyze",
@@ -207,17 +262,38 @@ Analyze and return the JSON score.`;
   async resumeJobMatch(
     candidateProfile: Record<string, any>,
     jobJd: string,
+    tenantId?: string
   ): Promise<MatchScoreResult> {
-    const system = `You are an expert ATS system. Calculate how well the candidate matches the job.
+    if (tenantId) {
+      await SubscriptionService.checkUsageLimit(tenantId, "ai_matches");
+    }
+
+    const system = `You are an expert ATS system. Calculate how well the candidate matches the job across multiple dimensions.
 Return ONLY valid JSON:
-{ "matchPercentage": number (0-100), "matchedSkills": string[], "missingSkills": string[], "summary": string }`;
+{ 
+  "matchPercentage": number (0-100 overall), 
+  "skillMatch": number (0-100), 
+  "experienceMatch": number (0-100), 
+  "locationMatch": number (0-100), 
+  "salaryMatch": number (0-100), 
+  "educationMatch": number (0-100), 
+  "matchedSkills": string[], 
+  "missingSkills": string[], 
+  "summary": string 
+}`;
 
     const raw = await callAI(
       system,
       `CANDIDATE: ${JSON.stringify(candidateProfile)}\n\nJOB: ${jobJd}`,
+      tenantId
     );
+
+    if (tenantId) {
+      await SubscriptionService.incrementUsage(tenantId, "ai_matches");
+    }
+
     return safeParse<MatchScoreResult>(raw, {
-      matchPercentage: 0, matchedSkills: [], missingSkills: [], summary: "Unable to analyze",
+      matchPercentage: 0, skillMatch: 0, experienceMatch: 0, locationMatch: 0, salaryMatch: 0, educationMatch: 0, matchedSkills: [], missingSkills: [], summary: "Unable to analyze",
     });
   },
 
@@ -227,7 +303,12 @@ Return ONLY valid JSON:
   async rankCandidates(
     candidates: Array<{ candidateId: string; name: string; profile: Record<string, any> }>,
     jobDescription: string,
+    tenantId?: string
   ): Promise<RankedCandidate[]> {
+    if (tenantId) {
+      await SubscriptionService.checkUsageLimit(tenantId, "ai_credits");
+    }
+
     const system = `You are a talent ranking system. Rank candidates for the job from best to worst.
 Return ONLY valid JSON array:
 [{ "candidateId": string, "name": string, "rankScore": number (0-100), "reasoning": string }]
@@ -236,21 +317,49 @@ Sort by rankScore descending.`;
     const raw = await callAI(
       system,
       `CANDIDATES: ${JSON.stringify(candidates)}\n\nJOB: ${jobDescription}`,
+      tenantId
     );
+
+    if (tenantId) {
+      await SubscriptionService.incrementUsage(tenantId, "ai_credits");
+    }
+
     return safeParse<RankedCandidate[]>(raw, []);
   },
 
   /**
-   * Generate a professional candidate summary
+   * Generate a comprehensive candidate summary
    */
-  async generateSummary(candidateProfile: Record<string, any>): Promise<string> {
-    const system = `You are a professional recruiter writing a candidate summary for a hiring manager.
-Write a concise 2-paragraph summary (max 150 words) highlighting key strengths and fit.
-Return ONLY valid JSON: { "summary": string }`;
+  async generateSummary(candidateProfile: Record<string, any>, tenantId?: string): Promise<any> {
+    if (tenantId) {
+      await SubscriptionService.checkUsageLimit(tenantId, "ai_credits");
+    }
 
-    const raw = await callAI(system, `Generate summary for: ${JSON.stringify(candidateProfile)}`);
-    const parsed = safeParse<{ summary: string }>(raw, { summary: "" });
-    return parsed.summary;
+    const system = `You are an executive recruiter analyzing a candidate profile.
+Provide a comprehensive analysis including the following elements.
+Return ONLY valid JSON:
+{
+  "executiveSummary": string,
+  "strengths": string[],
+  "weaknesses": string[],
+  "riskFactors": string[],
+  "interviewTips": string[],
+  "recommendedQuestions": string[],
+  "hiringRecommendation": "STRONG_HIRE" | "HIRE" | "HOLD" | "REJECT",
+  "confidenceScore": number (0-100)
+}`;
+
+    const raw = await callAI(system, `Generate summary for: ${JSON.stringify(candidateProfile)}`, tenantId);
+    
+    if (tenantId) {
+      await SubscriptionService.incrementUsage(tenantId, "ai_credits");
+    }
+
+    return safeParse<any>(raw, { 
+      executiveSummary: "Summary unavailable", 
+      strengths: [], weaknesses: [], riskFactors: [], interviewTips: [], recommendedQuestions: [],
+      hiringRecommendation: "HOLD", confidenceScore: 0
+    });
   },
 
   /**
@@ -260,7 +369,12 @@ Return ONLY valid JSON: { "summary": string }`;
     candidateProfile: Record<string, any>,
     jobDescription: string,
     interviewType: string = "HR",
+    tenantId?: string
   ): Promise<string[]> {
+    if (tenantId) {
+      await SubscriptionService.checkUsageLimit(tenantId, "ai_credits");
+    }
+
     const system = `You are an expert interviewer. Generate 8 targeted interview questions for a ${interviewType} interview.
 Return ONLY valid JSON: { "questions": string[] }
 Mix behavioral (STAR), technical, and situational questions based on the candidate's background.`;
@@ -268,7 +382,13 @@ Mix behavioral (STAR), technical, and situational questions based on the candida
     const raw = await callAI(
       system,
       `CANDIDATE: ${JSON.stringify(candidateProfile)}\n\nJOB: ${jobDescription}`,
+      tenantId
     );
+
+    if (tenantId) {
+      await SubscriptionService.incrementUsage(tenantId, "ai_credits");
+    }
+
     const parsed = safeParse<{ questions: string[] }>(raw, { questions: [] });
     return parsed.questions;
   },
@@ -276,7 +396,11 @@ Mix behavioral (STAR), technical, and situational questions based on the candida
   /**
    * AI Assessment recommendations after test completion
    */
-  async assessmentRecommendations(assessmentResult: Record<string, any>): Promise<string> {
+  async assessmentRecommendations(assessmentResult: Record<string, any>, tenantId?: string): Promise<string> {
+    if (tenantId) {
+      await SubscriptionService.checkUsageLimit(tenantId, "ai_credits");
+    }
+
     const system = `You are a learning & development advisor. Based on the assessment results, provide specific improvement recommendations.
 Return ONLY valid JSON: { "recommendations": string }
 Be constructive, specific, and actionable. Max 100 words.`;
@@ -284,7 +408,13 @@ Be constructive, specific, and actionable. Max 100 words.`;
     const raw = await callAI(
       system,
       `Assessment results: ${JSON.stringify(assessmentResult)}`,
+      tenantId
     );
+
+    if (tenantId) {
+      await SubscriptionService.incrementUsage(tenantId, "ai_credits");
+    }
+
     const parsed = safeParse<{ recommendations: string }>(raw, { recommendations: "" });
     return parsed.recommendations;
   },

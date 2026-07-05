@@ -4,6 +4,8 @@ import { logger } from "./config/logger";
 import { connectDatabase, disconnectDatabase } from "./config/database";
 import { bootstrapEventHandlers } from "./events/bootstrap";
 import { OutboxService } from "./services/outbox.service";
+import { SubscriptionService } from "./services/subscription.service";
+import { initSocketServer } from "./config/socket";
 
 let server: ReturnType<typeof app.listen>;
 let outboxInterval: NodeJS.Timeout | null = null;
@@ -17,6 +19,9 @@ async function bootstrap() {
   // 2. Register all domain event handlers
   bootstrapEventHandlers();
 
+  // 2.5 Seed default subscription plans (idempotent)
+  await SubscriptionService.seedDefaultPlans();
+
   // 3. Start HTTP Listener
   server = app.listen(env.PORT, () => {
     logger.info(
@@ -28,6 +33,9 @@ async function bootstrap() {
       "⚡ Server is running and listening for requests."
     );
   });
+
+  // 3.5 Attach Socket.io
+  initSocketServer(server);
 
   // 4. Start Transactional Outbox worker
   if (env.NODE_ENV !== "test") {

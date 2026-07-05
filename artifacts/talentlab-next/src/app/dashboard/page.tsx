@@ -30,69 +30,19 @@ import {
   CartesianGrid,
 } from "recharts";
 
-// Default Mock Fallback Data if backend API is not running/empty
+// Empty state fallbacks for production
 const defaultSummary = {
-  openRequirements: 18,
-  candidatesInPipeline: 54,
-  interviewsThisWeek: 12,
-  offersPending: 4,
-  joiningToday: 2,
-  avgTimeTofillDays: 19,
+  openRequirements: 0,
+  candidatesInPipeline: 0,
+  interviewsThisWeek: 0,
+  offersPending: 0,
+  joiningToday: 0,
+  avgTimeTofillDays: 0,
 };
 
-const defaultFunnel = [
-  { stage: "sourced", label: "Sourced", count: 85, pct: 100 },
-  { stage: "screened", label: "Screened", count: 62, pct: 72 },
-  { stage: "assessed", label: "Assessed", count: 48, pct: 56 },
-  { stage: "shortlisted", label: "Shortlisted", count: 32, pct: 37 },
-  { stage: "client_interview", label: "Client Interview", count: 18, pct: 21 },
-  { stage: "offer", label: "Offer", count: 6, pct: 7 },
-  { stage: "joining", label: "Joining", count: 4, pct: 4 },
-];
-
-const timeToHireTrend = [
-  { month: "Jan", duration: 24 },
-  { month: "Feb", duration: 22 },
-  { month: "Mar", duration: 21 },
-  { month: "Apr", duration: 19 },
-  { month: "May", duration: 18 },
-  { month: "Jun", duration: 16 },
-];
-
-const defaultRecentSubmissions = [
-  {
-    id: "1",
-    candidateName: "Jane Cooper",
-    jobTitle: "Senior React Developer",
-    companyName: "Apex Corp",
-    stage: "sourced",
-    date: "2 hours ago",
-  },
-  {
-    id: "2",
-    candidateName: "Robert Fox",
-    jobTitle: "DevOps Engineer",
-    companyName: "Acme Corp",
-    stage: "client_interview",
-    date: "1 day ago",
-  },
-  {
-    id: "3",
-    candidateName: "Cody Fisher",
-    jobTitle: "Full Stack Architect",
-    companyName: "TechLabs",
-    stage: "offer",
-    date: "2 days ago",
-  },
-  {
-    id: "4",
-    candidateName: "Arlene McCoy",
-    jobTitle: "Product Designer",
-    companyName: "Stripe",
-    stage: "joining",
-    date: "3 days ago",
-  },
-];
+const defaultFunnel: any[] = [];
+const timeToHireTrend: any[] = [];
+const defaultRecentSubmissions: any[] = [];
 
 export default function DashboardPage() {
   const { user, isLoading } = useAuth();

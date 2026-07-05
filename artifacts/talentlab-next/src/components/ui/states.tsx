@@ -80,17 +80,17 @@ export function LoadingState({ message = "Retrieving database payload..." }: { m
 
 export function Skeleton({ className }: { className?: string }) {
   return (
-    <div className={`animate-pulse rounded-2xl bg-muted/60 ${className || "h-4 w-full"}`} />
+    <div className={`animate-shimmer rounded-xl ${className || "h-4 w-full"}`} />
   );
 }
 
 export function ListSkeleton() {
   return (
-    <div className="space-y-3.5">
-      <Skeleton className="h-12 w-full" />
-      <Skeleton className="h-10 w-full" />
-      <Skeleton className="h-10 w-full" />
-      <Skeleton className="h-10 w-full" />
+    <div className="space-y-4 w-full">
+      <Skeleton className="h-12 w-full rounded-2xl" />
+      <Skeleton className="h-12 w-[95%] rounded-2xl" />
+      <Skeleton className="h-12 w-[90%] rounded-2xl" />
+      <Skeleton className="h-12 w-[98%] rounded-2xl" />
     </div>
   );
 }

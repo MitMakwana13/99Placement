@@ -94,9 +94,9 @@ export function PipelineFiltersBar({
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="flex overflow-x-auto pb-2 -mb-2 gap-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent lg:grid lg:grid-cols-4">
         {/* Search */}
-        <div className="relative">
+        <div className="relative min-w-[260px] lg:min-w-0 snap-start">
           <Search className="absolute left-3 top-3.5 h-4.5 w-4.5 text-muted-foreground" />
           <Input
             value={filters.search || ""}
@@ -107,57 +107,69 @@ export function PipelineFiltersBar({
         </div>
 
         {/* Company select */}
-        <Select
-          options={companyOptions}
-          value={filters.companyId || ""}
-          disabled={isLoadingCompanies}
-          onChange={(e) => handleSelectChange("companyId", e.target.value)}
-          className="border-border/70"
-        />
+        <div className="min-w-[200px] lg:min-w-0 snap-start">
+          <Select
+            options={companyOptions}
+            value={filters.companyId || ""}
+            disabled={isLoadingCompanies}
+            onChange={(e) => handleSelectChange("companyId", e.target.value)}
+            className="border-border/70"
+          />
+        </div>
 
         {/* Job select */}
-        <Select
-          options={jobOptions}
-          value={filters.jobId || ""}
-          disabled={isLoadingJobs}
-          onChange={(e) => handleSelectChange("jobId", e.target.value)}
-          className="border-border/70"
-        />
+        <div className="min-w-[200px] lg:min-w-0 snap-start">
+          <Select
+            options={jobOptions}
+            value={filters.jobId || ""}
+            disabled={isLoadingJobs}
+            onChange={(e) => handleSelectChange("jobId", e.target.value)}
+            className="border-border/70"
+          />
+        </div>
 
         {/* Recruiter select */}
-        <Select
-          options={recruiterOptions}
-          value={filters.assignedRecruiterId || ""}
-          onChange={(e) => handleSelectChange("assignedRecruiterId", e.target.value)}
-          className="border-border/70"
-        />
+        <div className="min-w-[200px] lg:min-w-0 snap-start">
+          <Select
+            options={recruiterOptions}
+            value={filters.assignedRecruiterId || ""}
+            onChange={(e) => handleSelectChange("assignedRecruiterId", e.target.value)}
+            className="border-border/70"
+          />
+        </div>
 
         {/* Priority select */}
-        <Select
-          options={priorityOptions}
-          value={filters.priority || ""}
-          onChange={(e) => handleSelectChange("priority", e.target.value)}
-          className="border-border/70"
-        />
+        <div className="min-w-[160px] lg:min-w-0 snap-start">
+          <Select
+            options={priorityOptions}
+            value={filters.priority || ""}
+            onChange={(e) => handleSelectChange("priority", e.target.value)}
+            className="border-border/70"
+          />
+        </div>
 
         {/* Source select */}
-        <Select
-          options={sourceOptions}
-          value={filters.source || ""}
-          onChange={(e) => handleSelectChange("source", e.target.value)}
-          className="border-border/70"
-        />
+        <div className="min-w-[160px] lg:min-w-0 snap-start">
+          <Select
+            options={sourceOptions}
+            value={filters.source || ""}
+            onChange={(e) => handleSelectChange("source", e.target.value)}
+            className="border-border/70"
+          />
+        </div>
 
         {/* Tag select */}
-        <Select
-          options={tagOptions}
-          value={filters.tag || ""}
-          onChange={(e) => handleSelectChange("tag", e.target.value)}
-          className="border-border/70"
-        />
+        <div className="min-w-[160px] lg:min-w-0 snap-start">
+          <Select
+            options={tagOptions}
+            value={filters.tag || ""}
+            onChange={(e) => handleSelectChange("tag", e.target.value)}
+            className="border-border/70"
+          />
+        </div>
 
         {/* Show Rejected/Archived toggle option */}
-        <div className="flex items-center justify-end sm:justify-start">
+        <div className="flex items-center min-w-[200px] lg:min-w-0 snap-start shrink-0">
           <label className="flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground cursor-pointer select-none">
             <input
               type="checkbox"

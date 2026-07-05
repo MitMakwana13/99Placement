@@ -12,7 +12,8 @@ import { Dialog } from "@/components/ui/dialog";
 import { CandidateForm } from "@/modules/candidate/components/CandidateForm";
 import { useToast } from "@/providers/ToastProvider";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Search, Filter, Trash2, UserPlus, Sparkles, Building, Briefcase } from "lucide-react";
+import { Select } from "@/components/ui/select";
+import { Plus, Search, Filter, Trash2, UserPlus, Sparkles, Building, Briefcase, FileUp, Loader2 } from "lucide-react";
 
 export default function CandidatesListPage() {
   const router = useRouter();
@@ -38,6 +39,10 @@ export default function CandidatesListPage() {
 
   // Onboard modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // File upload state for AI Resume Parsing
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Column definitions
   const columns: Column<Candidate>[] = [
@@ -154,6 +159,53 @@ export default function CandidatesListPage() {
     }
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== "application/pdf" && !file.name.endsWith(".pdf")) {
+      toast("Only PDF resumes are supported at the moment.", "error");
+      return;
+    }
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("resume", file);
+
+    try {
+      // Direct API call to the backend
+      const res = await fetch("/api/v1/candidates/upload", {
+        method: "POST",
+        headers: {
+          // Token will be handled by fetchInterceptor or proxy in Next.js
+          // Since we are using standard proxy for /api:
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to upload resume");
+      }
+
+      const data = await res.json();
+      toast(data.message || "Resume uploaded! AI is processing in the background.", "success");
+      
+      // Refresh candidates list after 2 seconds to show the pending profile
+      setTimeout(() => {
+        refetch();
+      }, 2000);
+      
+    } catch (error: any) {
+      toast(error.message, "error");
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   const sourceFilterOptions = [
     { value: "", label: "All Sourcing Channels" },
     { value: "portal", label: "Internal Portal" },
@@ -166,7 +218,7 @@ export default function CandidatesListPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
             Candidates CRM <span className="text-xs px-2.5 py-1 bg-pastel-pink/20 text-pastel-pink-ink font-bold rounded-full border border-pink-200/10">Active Slice</span>
@@ -176,13 +228,32 @@ export default function CandidatesListPage() {
           </p>
         </div>
 
-        <Button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 h-11 px-5 py-2.5 rounded-2xl cursor-pointer shadow active:scale-95 transition-all"
-        >
-          <UserPlus className="h-4.5 w-4.5 text-pastel-pink" />
-          <span>Onboard Candidate</span>
-        </Button>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <input 
+            type="file" 
+            ref={fileInputRef}
+            className="hidden" 
+            accept="application/pdf"
+            onChange={handleFileUpload}
+          />
+          <Button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            variant="outline"
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 h-11 px-5 py-2.5 rounded-2xl bg-card border-pastel-pink/30 hover:bg-pastel-pink/10 hover:text-pastel-pink text-foreground shadow-soft"
+          >
+            {isUploading ? <Loader2 className="h-4.5 w-4.5 animate-spin text-pastel-pink" /> : <FileUp className="h-4.5 w-4.5 text-pastel-pink" />}
+            <span className="whitespace-nowrap">Upload Resume</span>
+          </Button>
+
+          <Button
+            onClick={() => setIsModalOpen(true)}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 h-11 px-5 py-2.5 rounded-2xl shadow-soft"
+          >
+            <UserPlus className="h-4.5 w-4.5 text-primary-foreground" />
+            <span className="whitespace-nowrap">Onboard</span>
+          </Button>
+        </div>
       </header>
 
       {/* Main Table Panel */}
@@ -197,20 +268,16 @@ export default function CandidatesListPage() {
         }}
         searchPlaceholder="Filter by name, email, or role..."
         filterComponent={
-          <select
-            value={source}
-            onChange={(e) => {
-              setSource(e.target.value);
-              setPage(1);
-            }}
-            className="flex h-11 w-44 rounded-2xl border border-input bg-card px-3 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all"
-          >
-            {sourceFilterOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          <div className="w-[180px]">
+            <Select
+              value={source}
+              onChange={(e) => {
+                setSource(e.target.value);
+                setPage(1);
+              }}
+              options={sourceFilterOptions}
+            />
+          </div>
         }
         bulkActions={(selectedIds) => (
           <Button

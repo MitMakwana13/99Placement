@@ -105,6 +105,10 @@ app.use(healthRouter);
 // 9. Unmatched Route Fallback Interceptor
 app.use(notFoundHandler);
 
+import * as Sentry from "@sentry/node";
+// The error handler must be before any other error middleware and after all controllers
+Sentry.setupExpressErrorHandler(app);
+
 // 10. Centralized Error Handler (must reside after all handlers)
 app.use(errorHandler);
 

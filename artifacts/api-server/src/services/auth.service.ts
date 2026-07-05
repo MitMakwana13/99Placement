@@ -12,6 +12,7 @@ import { AppError } from "../utils/app-error";
 import logger from "../lib/logger";
 import { redisCache } from "../config/redis";
 import { EmailService } from "./email.service";
+import { SubscriptionService } from "./subscription.service";
 import { env } from "../config/env";
 
 export class AuthService {
@@ -86,6 +87,9 @@ export class AuthService {
 
       return { tenant, user };
     });
+
+    // Provision FREE trial subscription for new tenant (non-blocking, outside tx)
+    await SubscriptionService.provisionTrial(result.tenant.id);
 
     logger.info({ tenantId: result.tenant.id, userId: result.user.id }, "Tenant registered successfully");
 

@@ -21,6 +21,17 @@ export class CandidateController {
 
       const body = CreateCandidateSchema.parse(req.body);
       const candidate = await CandidateService.createCandidate(tenantId, body as any, performedById);
+      
+      // Trigger CandidateCreated workflow event
+      import("../services/workflow.service").then(({ WorkflowEngine }) => {
+        WorkflowEngine.triggerEvent(tenantId, "CandidateCreated", { 
+          candidateId: candidate.id, 
+          email: candidate.email, 
+          phone: candidate.phone, 
+          name: candidate.name 
+        });
+      });
+
       sendCreated(res, candidate);
     } catch (err) {
       next(err);

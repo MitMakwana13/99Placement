@@ -52,7 +52,7 @@ export default function JobsListPage() {
       render: (item) => (
         <div className="flex flex-col">
           <span className="font-bold text-foreground">{item.title}</span>
-          <span className="text-[10px] text-muted-foreground">{item.company?.name || "TalentLab Internal"}</span>
+          <span className="text-[10px] text-muted-foreground">{item.company?.name || "99 Placement Internal"}</span>
         </div>
       ),
     },

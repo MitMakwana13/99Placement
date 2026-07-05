@@ -147,7 +147,7 @@ export const assessmentService = {
   },
 
   getTestForCandidate: async (id: string): Promise<AssessmentTest> => {
-    return apiClient.get<AssessmentTest>(`assessments/tests/${id}/candidate`);
+    return apiClient.get<AssessmentTest>(`assessments/public/assessments/${id}`);
   },
 
   getDetailedReportCard: async (id: string): Promise<any> => {
@@ -155,7 +155,7 @@ export const assessmentService = {
   },
 
   startTest: async (id: string): Promise<AssessmentTest> => {
-    return apiClient.post<AssessmentTest>(`assessments/tests/${id}/start`, {});
+    return apiClient.post<AssessmentTest>(`assessments/public/assessments/${id}/start`, {});
   },
 
   submitAnswer: async (
@@ -164,12 +164,12 @@ export const assessmentService = {
     selectedOption: number
   ): Promise<{ success: boolean; isCorrect: boolean }> => {
     return apiClient.post<{ success: boolean; isCorrect: boolean }>(
-      `assessments/tests/${testId}/answers`,
+      `assessments/public/assessments/${testId}/answers`,
       { questionId, selectedOption }
     );
   },
 
   completeTest: async (id: string): Promise<AssessmentTest> => {
-    return apiClient.post<AssessmentTest>(`assessments/tests/${id}/submit`, {});
+    return apiClient.post<AssessmentTest>(`assessments/public/assessments/${id}/submit`, {});
   },
 };

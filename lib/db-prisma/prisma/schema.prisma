@@ -180,6 +180,7 @@ model Tenant {
   candidateTimelines     CandidateTimeline[]
   savedFilters           SavedFilter[]
   outboxEvents           OutboxEvent[]
+  workflows              Workflow[]
 
   companyAddresses       CompanyAddress[]
   companyDepartments     CompanyDepartment[]
@@ -205,16 +206,58 @@ model Tenant {
   candidateShareLinks    CandidateShareLink[]
   candidateAllocationStatuses CandidateAllocationStatus[]
 
+  subscription           TenantSubscription?
+  usages                 TenantUsage[]
+  workspaceInvites       WorkspaceInvite[]
+
   @@map("tenants")
 }
 
 model TenantSetting {
   id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenantId             String   @unique @map("tenant_id") @db.Uuid
+
+  // Legacy / existing fields (preserved exactly)
   brandingColor        String?  @map("branding_color")
   allowedLoginDomains  Json     @default("[]") @map("allowed_login_domains")
   timezone             String   @default("UTC")
   enableAiCopilot      Boolean  @default(true) @map("enable_ai_copilot")
+
+  // Branding (Phase 16)
+  logoUrl              String?  @map("logo_url")
+  faviconUrl           String?  @map("favicon_url")
+  primaryColor         String?  @map("primary_color")
+
+  // Company Info (Phase 16)
+  companyName          String?  @map("company_name")
+  companyWebsite       String?  @map("company_website")
+  companyAddress       String?  @map("company_address")
+  companyPhone         String?  @map("company_phone")
+
+  // Locale (Phase 16)
+  currency             String   @default("INR")
+  language             String   @default("en")
+  dateFormat           String   @default("DD/MM/YYYY") @map("date_format")
+
+  // Email Config (Phase 16)
+  emailFromName        String?  @map("email_from_name")
+  emailFromAddress     String?  @map("email_from_address")
+  emailReplyTo         String?  @map("email_reply_to")
+  emailSignature       String?  @map("email_signature")
+
+  // AI Config per workspace (Phase 16 — workspace-level override)
+  aiProvider           String   @default("openai") @map("ai_provider")
+  aiModel              String?  @map("ai_model")
+  aiBaseUrl            String?  @map("ai_base_url")
+  aiApiKeyEncrypted    String?  @map("ai_api_key_encrypted")
+
+  // Notification toggles (Phase 16)
+  notifyOnNewCandidate Boolean  @default(true) @map("notify_on_new_candidate")
+  notifyOnStageChange  Boolean  @default(true) @map("notify_on_stage_change")
+  notifyOnOfferRelease Boolean  @default(true) @map("notify_on_offer_release")
+  notifyOnAssessment   Boolean  @default(true) @map("notify_on_assessment")
+  notifyOnJoining      Boolean  @default(true) @map("notify_on_joining")
+
   updatedAt            DateTime @updatedAt @map("updated_at")
 
   tenant               Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -232,6 +275,7 @@ model Role {
   tenant       Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   users        User[]
   permissions  RolePermissionMapping[]
+  workspaceInvites WorkspaceInvite[]
 
   @@unique([tenantId, name])
   @@map("roles")
@@ -315,6 +359,7 @@ model User {
 
   screeningInterviewsAsInterviewer ScreeningInterview[] @relation("ScreeningInterviewer")
   approvedOffers                   OfferApproval[]      @relation("OfferApprover")
+  sentInvites                      WorkspaceInvite[]    @relation("SentInvites")
 
   @@map("users")
 }
@@ -564,6 +609,7 @@ model Candidate {
   timeline       CandidateTimeline[]
   allocationStatus CandidateAllocationStatus?
 
+  @@index([tenantId])
   @@map("candidates")
 }
 
@@ -1779,4 +1825,130 @@ model CandidateAllocationStatus {
   candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
 
   @@map("candidate_allocation_statuses")
+}
+
+// Phase 16: SaaS Multi-Tenant Platform Models
+
+model SubscriptionPlan {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                   String   @unique
+  displayName            String   @map("display_name")
+  priceMonthly           Decimal  @default(0) @map("price_monthly")
+  priceYearly            Decimal  @default(0) @map("price_yearly")
+  isActive               Boolean  @default(true) @map("is_active")
+  maxRecruiters          Int?     @map("max_recruiters")
+  maxCandidates          Int?     @map("max_candidates")
+  maxCompanies           Int?     @map("max_companies")
+  maxJobs                Int?     @map("max_jobs")
+  maxStorageMb           Int?     @map("max_storage_mb")
+  maxAiCreditsMonthly    Int?     @map("max_ai_credits_monthly")
+  maxAssessments         Int?     @map("max_assessments")
+  maxActivePipelines     Int?     @map("max_active_pipelines")
+  maxResumeParsesMonthly Int?     @map("max_resume_parses_monthly")
+  maxAiMatchesMonthly    Int?     @map("max_ai_matches_monthly")
+  maxEmailsMonthly       Int?     @map("max_emails_monthly")
+  features               Json     @default("{}")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+  subscriptions          TenantSubscription[]
+  @@map("subscription_plans")
+}
+
+model TenantSubscription {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId             String    @unique @map("tenant_id") @db.Uuid
+  planId               String    @map("plan_id") @db.Uuid
+  status               String    @default("TRIAL")
+  trialEndsAt          DateTime? @map("trial_ends_at")
+  currentPeriodStart   DateTime  @map("current_period_start")
+  currentPeriodEnd     DateTime  @map("current_period_end")
+  cancelledAt          DateTime? @map("cancelled_at")
+  stripeCustomerId     String?   @map("stripe_customer_id")
+  stripeSubscriptionId String?   @map("stripe_subscription_id")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+  tenant               Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan                 SubscriptionPlan @relation(fields: [planId], references: [id])
+  @@map("tenant_subscriptions")
+}
+
+model TenantUsage {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  periodMonth       Int      @map("period_month")
+  periodYear        Int      @map("period_year")
+  aiCreditsUsed     Int      @default(0) @map("ai_credits_used")
+  resumeParsesUsed  Int      @default(0) @map("resume_parses_used")
+  aiMatchesUsed     Int      @default(0) @map("ai_matches_used")
+  emailsSentUsed    Int      @default(0) @map("emails_sent_used")
+  storageMbUsed     Decimal  @default(0) @map("storage_mb_used")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  @@unique([tenantId, periodMonth, periodYear])
+  @@map("tenant_usages")
+}
+
+model WorkspaceInvite {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  email       String
+  roleId      String    @map("role_id") @db.Uuid
+  token       String    @unique
+  invitedById String    @map("invited_by_id") @db.Uuid
+  expiresAt   DateTime  @map("expires_at")
+  acceptedAt  DateTime? @map("accepted_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invitedBy   User      @relation("SentInvites", fields: [invitedById], references: [id])
+  role        Role      @relation(fields: [roleId], references: [id])
+  @@index([token])
+  @@map("workspace_invites")
+}
+
+// -----------------------------------------------------------------------------
+// WORKFLOW AUTOMATION (SPRINT 5)
+// -----------------------------------------------------------------------------
+
+model Workflow {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  name        String
+  description String?
+  triggerEvent String  @map("trigger_event") // e.g., CANDIDATE_CREATED, INTERVIEW_SCHEDULED
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  steps       WorkflowStep[]
+  executions  WorkflowExecution[]
+
+  @@map("workflows")
+}
+
+model WorkflowStep {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workflowId  String   @map("workflow_id") @db.Uuid
+  type        String   // e.g., SEND_EMAIL, SEND_WHATSAPP
+  config      Json     @default("{}") // Store template IDs, subject, body, etc.
+  order       Int      // Sequential execution order
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@map("workflow_steps")
+}
+
+model WorkflowExecution {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workflowId  String   @map("workflow_id") @db.Uuid
+  status      String   // PENDING, COMPLETED, FAILED
+  payload     Json     @default("{}") // What triggered this execution
+  logs        Json     @default("[]") // Array of execution step logs
+  startedAt   DateTime @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@map("workflow_executions")
 }

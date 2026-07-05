@@ -10,6 +10,7 @@ import { candidateShareLinksTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../../middleware/auth";
 import { prisma } from "@workspace/db-prisma";
+import { SubscriptionService } from "../../services/subscription.service";
 import crypto from "crypto";
 import logger from "../../lib/logger";
 
@@ -20,6 +21,16 @@ router.post("/share/candidate/:pipelineId", requireAuth, async (req, res): Promi
   const pipelineId = Array.isArray(req.params.pipelineId) ? req.params.pipelineId[0] : req.params.pipelineId;
   const { tenantId } = req.context;
   const { expiryHours = 48 } = req.body;
+
+  // 1. Subscription feature-gate check
+  const subscription = await SubscriptionService.getSubscription(tenantId);
+  const features = (subscription?.plan?.features as any) || {};
+  if (!features.clientPortal) {
+    res.status(402).json({
+      error: "Client Portal feature is not active under this workspace's current plan. Please upgrade to use this feature.",
+    });
+    return;
+  }
 
   const pipeline = await prisma.candidatePipeline.findFirst({
     where: { id: pipelineId, tenantId },
@@ -90,6 +101,14 @@ router.get("/share/:token", async (req, res): Promise<void> => {
 
   if (!link) {
     res.status(404).json({ error: "Share link not found or has been revoked" });
+    return;
+  }
+
+  // 1. Subscription feature-gate check for client portal
+  const subscription = await SubscriptionService.getSubscription(link.tenantId);
+  const features = (subscription?.plan?.features as any) || {};
+  if (!features.clientPortal) {
+    res.status(402).json({ error: "Client Portal feature is disabled under this workspace's current plan." });
     return;
   }
 
@@ -194,6 +213,14 @@ router.post("/share/:token/decision", async (req, res): Promise<void> => {
 
   if (!link) {
     res.status(404).json({ error: "Share link not found or revoked" });
+    return;
+  }
+
+  // 1. Subscription feature-gate check for client portal
+  const subscription = await SubscriptionService.getSubscription(link.tenantId);
+  const features = (subscription?.plan?.features as any) || {};
+  if (!features.clientPortal) {
+    res.status(402).json({ error: "Client Portal feature is disabled under this workspace's current plan." });
     return;
   }
 

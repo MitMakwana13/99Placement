@@ -1,0 +1,13 @@
+{
+  "buildCommand": "pnpm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "installCommand": "pnpm install",
+  "devCommand": "pnpm run dev",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://api.talentlab.co/api/:path*"
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, ChevronsUpDown, Trash2, ShieldAlert } from "lucide-react";
 import { Button } from "./button";
 import { Card } from "./card";
+import { Input } from "./input";
 import { ListSkeleton, EmptyState } from "./states";
 
 export interface Column<T> {
@@ -83,13 +84,15 @@ export function DataTable<T extends { id: string }>({
       <div className="flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-center">
         <div className="flex-1 flex gap-3 items-center">
           {onSearchChange !== undefined && (
-            <input
-              type="text"
-              value={searchQuery || ""}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder={searchPlaceholder}
-              className="flex h-11 w-full max-w-sm rounded-2xl border border-input bg-card px-4 text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all"
-            />
+            <div className="relative w-full max-w-sm">
+              <Input
+                type="text"
+                value={searchQuery || ""}
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder={searchPlaceholder}
+                className="w-full"
+              />
+            </div>
           )}
           {filterComponent}
         </div>
@@ -106,8 +109,8 @@ export function DataTable<T extends { id: string }>({
       </div>
 
       {/* Main Table view container */}
-      <Card className="border border-border/80 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+      <Card className="border border-border/80 overflow-hidden shadow-soft glass-panel relative">
+        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
           <table className="w-full text-left text-sm border-collapse">
             <thead>
               <tr className="bg-muted/40 border-b border-border/60 text-muted-foreground text-xs font-bold uppercase tracking-wider">

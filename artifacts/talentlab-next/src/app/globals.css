@@ -3,8 +3,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
-  --font-display: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+  --font-sans: "Inter", "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-display: "Inter", "Plus Jakarta Sans", system-ui, sans-serif;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -33,24 +33,12 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --color-pastel-yellow: var(--pastel-yellow);
-  --color-pastel-yellow-ink: var(--pastel-yellow-ink);
-  --color-pastel-pink: var(--pastel-pink);
-  --color-pastel-pink-ink: var(--pastel-pink-ink);
-  --color-pastel-green: var(--pastel-green);
-  --color-pastel-green-ink: var(--pastel-green-ink);
-  --color-pastel-blue: var(--pastel-blue);
-  --color-pastel-blue-ink: var(--pastel-blue-ink);
-  --color-pastel-lavender: var(--pastel-lavender);
-  --color-pastel-peach: var(--pastel-peach);
-  --color-ink: var(--ink);
-
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-chart-6: var(--chart-6);
+  /* Enterprise Accents */
+  --color-enterprise-indigo: var(--enterprise-indigo);
+  --color-enterprise-slate: var(--enterprise-slate);
+  --color-enterprise-emerald: var(--enterprise-emerald);
+  --color-enterprise-amber: var(--enterprise-amber);
+  --color-enterprise-rose: var(--enterprise-rose);
 
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
@@ -65,78 +53,76 @@
 :root {
   --radius: 1rem;
 
-  /* Warm cream canvas, deep ink, pastel accents */
-  --background: oklch(0.972 0.018 88);
-  --foreground: oklch(0.18 0.01 270);
-  --ink: oklch(0.13 0.01 270);
+  /* Premium Linear/Stripe Inspired Light Theme */
+  --background: oklch(0.99 0 0); /* Cream White #FCFCFC */
+  --foreground: oklch(0.2 0.01 260); /* Slate #0f172a */
+  
+  --card: oklch(1 0 0); /* Pure White */
+  --card-foreground: oklch(0.2 0.01 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0.01 260);
 
-  --card: oklch(0.995 0.005 90);
-  --card-foreground: oklch(0.18 0.01 270);
-  --popover: oklch(0.995 0.005 90);
-  --popover-foreground: oklch(0.18 0.01 270);
+  /* Primary action: Deep Indigo */
+  --primary: oklch(0.28 0.04 260); /* Deep Indigo */
+  --primary-foreground: oklch(0.98 0 0);
+  
+  --secondary: oklch(0.96 0.01 260); /* Soft slate bg */
+  --secondary-foreground: oklch(0.28 0.04 260);
+  
+  --muted: oklch(0.96 0.01 260);
+  --muted-foreground: oklch(0.55 0.01 260); /* Lighter slate text */
+  
+  --accent: oklch(0.96 0.01 260);
+  --accent-foreground: oklch(0.2 0.01 260);
+  
+  --destructive: oklch(0.5 0.2 25);
+  --destructive-foreground: oklch(0.98 0 0);
 
-  --primary: oklch(0.16 0.01 270);
-  --primary-foreground: oklch(0.98 0.01 90);
-  --secondary: oklch(0.94 0.015 88);
-  --secondary-foreground: oklch(0.18 0.01 270);
-  --muted: oklch(0.94 0.012 90);
-  --muted-foreground: oklch(0.48 0.015 270);
-  --accent: oklch(0.92 0.04 95);
-  --accent-foreground: oklch(0.18 0.01 270);
-  --destructive: oklch(0.62 0.21 25);
-  --destructive-foreground: oklch(0.98 0.01 90);
+  --border: oklch(0.92 0.01 260);
+  --input: oklch(0.92 0.01 260);
+  --ring: oklch(0.28 0.04 260 / 0.2);
 
-  --border: oklch(0.18 0.01 270 / 0.1);
-  --input: oklch(0.18 0.01 270 / 0.12);
-  --ring: oklch(0.18 0.01 270 / 0.4);
+  /* Enterprise Accents */
+  --enterprise-indigo: oklch(0.55 0.2 260); /* Vibrant Blue/Indigo */
+  --enterprise-slate: oklch(0.4 0.02 260);
+  --enterprise-emerald: oklch(0.65 0.15 150);
+  --enterprise-amber: oklch(0.75 0.18 50);
+  --enterprise-rose: oklch(0.6 0.2 25);
 
-  /* Pastel palette */
-  --pastel-yellow: oklch(0.92 0.14 95);
-  --pastel-yellow-ink: oklch(0.32 0.07 75);
-  --pastel-pink: oklch(0.87 0.09 5);
-  --pastel-pink-ink: oklch(0.32 0.09 5);
-  --pastel-green: oklch(0.86 0.09 150);
-  --pastel-green-ink: oklch(0.28 0.08 150);
-  --pastel-blue: oklch(0.88 0.07 235);
-  --pastel-blue-ink: oklch(0.3 0.09 250);
-  --pastel-lavender: oklch(0.86 0.07 300);
-  --pastel-peach: oklch(0.9 0.08 50);
-
-  --chart-1: oklch(0.78 0.16 85);
-  --chart-2: oklch(0.72 0.13 5);
-  --chart-3: oklch(0.7 0.13 150);
-  --chart-4: oklch(0.65 0.13 240);
-  --chart-5: oklch(0.65 0.15 300);
-  --chart-6: oklch(0.75 0.14 50);
-
-  --sidebar: oklch(0.16 0.01 270);
-  --sidebar-foreground: oklch(0.92 0.01 90);
-  --sidebar-primary: oklch(0.92 0.14 95);
-  --sidebar-primary-foreground: oklch(0.18 0.01 270);
-  --sidebar-accent: oklch(0.22 0.01 270);
-  --sidebar-accent-foreground: oklch(0.98 0.01 90);
-  --sidebar-border: oklch(1 0 0 / 0.06);
-  --sidebar-ring: oklch(0.92 0.14 95);
+  /* Vercel/Linear style dark sidebar */
+  --sidebar: oklch(0.12 0.01 260);
+  --sidebar-foreground: oklch(0.95 0 0);
+  --sidebar-primary: oklch(0.98 0 0);
+  --sidebar-primary-foreground: oklch(0.12 0.01 260);
+  --sidebar-accent: oklch(0.18 0.01 260);
+  --sidebar-accent-foreground: oklch(0.98 0 0);
+  --sidebar-border: oklch(0.18 0.01 260);
+  --sidebar-ring: oklch(0.55 0.2 260);
 }
 
 .dark {
-  --background: oklch(0.13 0.01 270);
-  --foreground: oklch(0.96 0.01 90);
-  --card: oklch(0.18 0.01 270);
-  --card-foreground: oklch(0.96 0.01 90);
-  --popover: oklch(0.18 0.01 270);
-  --popover-foreground: oklch(0.96 0.01 90);
-  --primary: oklch(0.92 0.14 95);
-  --primary-foreground: oklch(0.16 0.01 270);
-  --secondary: oklch(0.24 0.01 270);
-  --secondary-foreground: oklch(0.96 0.01 90);
-  --muted: oklch(0.24 0.01 270);
-  --muted-foreground: oklch(0.72 0.02 270);
-  --accent: oklch(0.24 0.01 270);
-  --accent-foreground: oklch(0.96 0.01 90);
-  --border: oklch(1 0 0 / 0.08);
-  --input: oklch(1 0 0 / 0.12);
-  --ring: oklch(0.92 0.14 95 / 0.5);
+  --background: oklch(0.12 0.01 260);
+  --foreground: oklch(0.95 0 0);
+  --card: oklch(0.15 0.01 260);
+  --card-foreground: oklch(0.95 0 0);
+  --popover: oklch(0.15 0.01 260);
+  --popover-foreground: oklch(0.95 0 0);
+  
+  --primary: oklch(0.95 0 0);
+  --primary-foreground: oklch(0.12 0.01 260);
+  
+  --secondary: oklch(0.2 0.01 260);
+  --secondary-foreground: oklch(0.95 0 0);
+  
+  --muted: oklch(0.2 0.01 260);
+  --muted-foreground: oklch(0.65 0.01 260);
+  
+  --accent: oklch(0.2 0.01 260);
+  --accent-foreground: oklch(0.95 0 0);
+  
+  --border: oklch(0.2 0.01 260);
+  --input: oklch(0.2 0.01 260);
+  --ring: oklch(0.95 0 0 / 0.2);
 }
 
 @layer base {
@@ -148,15 +134,63 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.015em;
   }
-  h1, h2, h3, h4 {
+  h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
+    font-weight: 700;
   }
 }
 
-.card-pastel {
-  border-radius: var(--radius-2xl);
-  padding: 1.25rem;
-  border: 1px solid oklch(0.18 0.01 270 / 0.06);
+/* 
+  Premium Glass Panels 
+  Inspired by Stripe & Linear layering
+*/
+.glass-panel {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.03), 0 0 1px rgba(0,0,0,0.1);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.dark .glass-panel {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.glass-panel-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0,0,0,0.15);
+}
+
+/* 
+  Soft Shadows 
+  Beautiful ambient shadows for cards
+*/
+.shadow-soft {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02), 
+              0 6px 18px -4px rgba(0,0,0,0.04), 
+              0 16px 32px -8px rgba(0,0,0,0.06);
+}
+.shadow-modal {
+  box-shadow: 0 4px 6px rgba(0,0,0,0.02),
+              0 20px 40px -10px rgba(0,0,0,0.08),
+              0 40px 80px -20px rgba(0,0,0,0.12);
+}
+
+/* Shimmer Loading Animation */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(90deg, 
+    var(--color-muted) 25%, 
+    var(--color-secondary) 50%, 
+    var(--color-muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
 }

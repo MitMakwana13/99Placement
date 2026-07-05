@@ -68,6 +68,9 @@ const COMPANY_TYPE_LABELS: Record<CompanyType, string> = {
   OTHER: "Other",
 };
 
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+
 const DOCUMENT_TYPE_LABELS: Record<CompanyDocumentType, string> = {
   GST_CERTIFICATE: "GST Certificate",
   PAN: "PAN Card",
@@ -77,12 +80,6 @@ const DOCUMENT_TYPE_LABELS: Record<CompanyDocumentType, string> = {
   CONTRACT: "Employment Contract",
   OTHER: "Other document",
 };
-
-const MOCK_RECRUITERS = [
-  { id: "e6f4370a-74b8-4c91-a1e4-399a0f5a2f5a", name: "Marcus Chen", email: "marcus@talentlab.co" },
-  { id: "e6f4370a-74b8-4c91-a1e4-399a0f5a2f5b", name: "Elena Rostova", email: "elena@talentlab.co" },
-  { id: "e6f4370a-74b8-4c91-a1e4-399a0f5a2f5c", name: "Sarah Jenkins", email: "sarah@talentlab.co" },
-];
 
 export default function CompanyDetailPage() {
   const params = useParams();
@@ -108,6 +105,13 @@ export default function CompanyDetailPage() {
   // Core Jobs query (to filter by company)
   const { data: allJobs = [] } = useJobs();
   const companyJobs = allJobs.filter((j) => j.companyId === id);
+
+  // Fetch real workspace members
+  const { data: workspaceData } = useQuery({
+    queryKey: ["workspace-members"],
+    queryFn: () => apiClient.get<{ members: any[] }>("workspace/members"),
+  });
+  const members = workspaceData?.members || [];
 
   // Recruiters Mutations
   const assignRecruiterMutation = useAssignRecruiter(id);
@@ -1101,8 +1105,8 @@ export default function CompanyDetailPage() {
                     {currentUser && (
                       <option value={currentUser.id}>Me ({currentUser.name})</option>
                     )}
-                    {/* Add Mock users */}
-                    {MOCK_RECRUITERS.filter(mr => mr.id !== currentUser?.id).map(r => (
+                    {/* Add workspace members */}
+                    {members.filter((mr: any) => mr.id !== currentUser?.id).map((r: any) => (
                       <option key={r.id} value={r.id}>{r.name} ({r.email})</option>
                     ))}
                   </select>

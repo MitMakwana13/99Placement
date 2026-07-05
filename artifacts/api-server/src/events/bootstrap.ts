@@ -37,6 +37,7 @@ import {
   AssessmentAssignedTimelineHandler,
   AssessmentAssignedAuditHandler,
   AssessmentAssignedNotificationHandler,
+  AssessmentAssignedEmailHandler,
   AssessmentAssignedAnalyticsHandler,
   AssessmentStartedTimelineHandler,
   AssessmentStartedAuditHandler,
@@ -234,6 +235,7 @@ import {
 } from "./hiring-decision/hiring-decision.handlers";
 
 import { logger } from "../config/logger";
+import { ResumeUploadedHandler } from "./handlers/resume-uploaded.handler";
 
 function registerCandidateHandlers(): void {
   domainEventBus.subscribe(CandidateCreatedEvent.prototype.eventName,  new CandidateCreatedTimelineHandler());
@@ -352,6 +354,7 @@ function registerAssessmentHandlers(): void {
   domainEventBus.subscribe(AssessmentAssignedEvent.prototype.eventName,   new AssessmentAssignedTimelineHandler());
   domainEventBus.subscribe(AssessmentAssignedEvent.prototype.eventName,   new AssessmentAssignedAuditHandler());
   domainEventBus.subscribe(AssessmentAssignedEvent.prototype.eventName,   new AssessmentAssignedNotificationHandler());
+  domainEventBus.subscribe(AssessmentAssignedEvent.prototype.eventName,   new AssessmentAssignedEmailHandler());
   domainEventBus.subscribe(AssessmentAssignedEvent.prototype.eventName,   new AssessmentAssignedAnalyticsHandler());
 
   domainEventBus.subscribe(AssessmentStartedEvent.prototype.eventName,    new AssessmentStartedTimelineHandler());
@@ -392,6 +395,11 @@ function registerHiringDecisionHandlers(): void {
   domainEventBus.subscribe(JoiningFollowupCreatedEvent.prototype.eventName, new JoiningFollowupCreatedTimelineHandler());
 }
 
+function registerResumeIntelligenceHandlers(): void {
+  // We use the raw string "RESUME_UPLOADED" as the eventName matches what was created in candidates/index.ts
+  domainEventBus.subscribe("RESUME_UPLOADED", new ResumeUploadedHandler());
+}
+
 /**
  * Call once during server bootstrap (before routes are mounted).
  */
@@ -406,6 +414,7 @@ export function bootstrapEventHandlers(): void {
   registerScreeningHandlers();
   registerAssessmentHandlers();
   registerHiringDecisionHandlers();
+  registerResumeIntelligenceHandlers();
 
   logger.info("EventBus: all domain event handlers registered");
 }

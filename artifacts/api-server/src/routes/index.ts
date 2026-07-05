@@ -20,6 +20,10 @@ import uploadRouter from "./upload.routes";
 import aiRouter from "./ai";
 import shareRouter from "./share";
 import allocationRouter from "./candidates/allocation";
+import workspaceRouter from "./workspace";
+import communicationRouter from "./communication.routes";
+
+import workflowRouter from "./workflows";
 
 const router: IRouter = Router();
 
@@ -44,5 +48,8 @@ router.use(uploadRouter);
 router.use(aiRouter);
 router.use(shareRouter);
 router.use(allocationRouter);
+router.use("/workspace", workspaceRouter);
+router.use("/communication", communicationRouter);
+router.use("/workflows", workflowRouter);
 
 export default router;

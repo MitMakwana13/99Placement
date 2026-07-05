@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
 import { CandidateForm } from "@/modules/candidate/components/CandidateForm";
+import { EmailComposer } from "@/modules/candidate/components/communication/EmailComposer";
+import { WhatsAppComposer } from "@/modules/candidate/components/communication/WhatsAppComposer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/providers/ToastProvider";
 import {
@@ -33,6 +35,8 @@ import {
   Share2,
   Link,
   UserCheck,
+  AlertCircle,
+  ShieldAlert,
 } from "lucide-react";
 
 type TabType = "overview" | "timeline" | "resume" | "notes" | "documents" | "ai";
@@ -72,6 +76,10 @@ export default function CandidateDetailPage() {
   const [newNoteText, setNewNoteText] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
+  // Timeline State
+  const [timelineEvents, setTimelineEvents] = useState<any[]>([]);
+  const [isTimelineLoading, setIsTimelineLoading] = useState(false);
+
   // AI Analysis state
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -85,6 +93,10 @@ export default function CandidateDetailPage() {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [generatingShare, setGeneratingShare] = useState(false);
 
+  // Communication Modals
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+
   // Fetch AI analysis + allocation on candidate load
   const [pipelineId, setPipelineId] = useState<string | null>(null);
 
@@ -95,6 +107,20 @@ export default function CandidateDetailPage() {
       .then((r) => { if (r.data?.status) setAllocationStatus(r.data.status); })
       .catch(() => {});
   }, [id]);
+
+  React.useEffect(() => {
+    if (activeTab === "timeline" && id) {
+      setIsTimelineLoading(true);
+      apiClient.get<any>(`candidates/${id}/timeline`)
+        .then((r) => {
+          if (r.data?.data) setTimelineEvents(r.data.data);
+        })
+        .catch(() => {
+          toast("Failed to load timeline events", "error");
+        })
+        .finally(() => setIsTimelineLoading(false));
+    }
+  }, [activeTab, id]);
 
   async function handleUpdateAllocation(status: string) {
     setUpdatingAllocation(true);
@@ -354,13 +380,33 @@ export default function CandidateDetailPage() {
 
             {/* Quick Contact Specs */}
             <div className="space-y-3.5 text-xs">
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Mail className="h-4 w-4 shrink-0 text-pastel-pink" />
-                <span className="text-foreground font-medium truncate">{candidate.email}</span>
+              <div className="flex items-center justify-between group">
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <Mail className="h-4 w-4 shrink-0 text-pastel-pink" />
+                  <span className="text-foreground font-medium truncate">{candidate.email}</span>
+                </div>
+                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => {
+                  const pid = pipelineId ?? (candidate as any)?.pipelines?.[0]?.id ?? (candidate as any)?.pipelineId;
+                  setPipelineId(pid);
+                  setIsEmailModalOpen(true);
+                }}>
+                  <Mail className="h-3 w-3" />
+                </Button>
               </div>
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Phone className="h-4 w-4 shrink-0 text-pastel-pink" />
-                <span className="text-foreground font-medium">{candidate.phone || "Not provided"}</span>
+              <div className="flex items-center justify-between group">
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <Phone className="h-4 w-4 shrink-0 text-pastel-pink" />
+                  <span className="text-foreground font-medium">{candidate.phone || "Not provided"}</span>
+                </div>
+                {candidate.phone && (
+                  <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => {
+                    const pid = pipelineId ?? (candidate as any)?.pipelines?.[0]?.id ?? (candidate as any)?.pipelineId;
+                    setPipelineId(pid);
+                    setIsWhatsAppModalOpen(true);
+                  }}>
+                    <MessageSquare className="h-3 w-3 text-emerald-500" />
+                  </Button>
+                )}
               </div>
               <div className="flex items-center gap-3 text-muted-foreground">
                 <MapPin className="h-4 w-4 shrink-0 text-pastel-pink" />
@@ -506,42 +552,29 @@ export default function CandidateDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="relative pl-6 border-l border-border/80 ml-3 space-y-8 py-2">
-                  {/* Sourced */}
-                  <div className="relative">
-                    <span className="absolute -left-[31px] top-1.5 w-4 h-4 rounded-full bg-pastel-green border-4 border-card flex items-center justify-center" />
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-xs font-bold text-foreground">Sourcing Entry Created</h4>
-                        <span className="text-[9px] bg-muted px-2 py-0.5 rounded-full font-semibold">Done</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Candidate profile onboarded into database via {candidate.source || "portal"} by recruitment supervisor.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Screening */}
-                  <div className="relative">
-                    <span className="absolute -left-[31px] top-1.5 w-4 h-4 rounded-full bg-pastel-blue border-4 border-card flex items-center justify-center animate-pulse" />
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-xs font-bold text-foreground">Internal Screen Queue</h4>
-                        <span className="text-[9px] bg-pastel-blue text-pastel-blue-ink px-2 py-0.5 rounded-full font-extrabold border border-blue-200/10">In Queue</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Scheduled for automated cognitive screening tests and interview validations.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Offers */}
-                  <div className="relative opacity-60">
-                    <span className="absolute -left-[31px] top-1.5 w-4 h-4 rounded-full bg-muted border-4 border-card flex items-center justify-center" />
-                    <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-muted-foreground">Job Offer & Decision</h4>
-                      <p className="text-xs text-muted-foreground">Pending subsequent client-side technical panels.</p>
-                    </div>
-                  </div>
+                  {isTimelineLoading ? (
+                    <div className="text-sm text-muted-foreground animate-pulse">Loading timeline...</div>
+                  ) : timelineEvents.length > 0 ? (
+                    timelineEvents.map((event, idx) => {
+                      const isCommunication = event.eventType.startsWith("COMMUNICATION_");
+                      return (
+                        <div key={event.id || idx} className="relative">
+                          <span className={`absolute -left-[31px] top-1.5 w-4 h-4 rounded-full ${isCommunication ? "bg-emerald-500" : "bg-pastel-blue"} border-4 border-card flex items-center justify-center`} />
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-xs font-bold text-foreground">{event.title}</h4>
+                              <span className="text-[9px] bg-muted px-2 py-0.5 rounded-full font-semibold">
+                                {new Date(event.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{event.description}</p>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-sm text-muted-foreground">No timeline events found.</div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -787,19 +820,97 @@ export default function CandidateDetailPage() {
                     <Card className="border border-border/80 shadow-sm p-2">
                       <CardHeader><CardTitle className="text-base font-bold">🎯 Job Match Score</CardTitle></CardHeader>
                       <CardContent>
-                        <div className="flex items-center gap-6 mb-4">
-                          <div className="text-4xl font-extrabold text-emerald-400">{aiAnalysis.matchScore.matchPercentage}%</div>
+                        <div className="flex items-center gap-6 mb-6">
+                          <div className="text-5xl font-extrabold text-emerald-400">{aiAnalysis.matchScore.matchPercentage}%</div>
                           <div className="flex-1"><div className="w-full bg-muted rounded-full h-3"><div className="bg-gradient-to-r from-emerald-600 to-emerald-400 h-3 rounded-full" style={{ width: `${aiAnalysis.matchScore.matchPercentage}%` }} /></div></div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 text-xs">
-                          <div><p className="text-emerald-400 font-bold mb-2">✅ Matched Skills</p><div className="flex flex-wrap gap-1">{aiAnalysis.matchScore.matchedSkills?.map((s: string) => <span key={s} className="px-2 py-0.5 bg-emerald-500/10 text-emerald-300 text-[10px] rounded border border-emerald-500/20">{s}</span>)}</div></div>
-                          <div><p className="text-red-400 font-bold mb-2">⚠️ Missing Skills</p><div className="flex flex-wrap gap-1">{aiAnalysis.matchScore.missingSkills?.map((s: string) => <span key={s} className="px-2 py-0.5 bg-red-500/10 text-red-300 text-[10px] rounded border border-red-500/20">{s}</span>)}</div></div>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+                          {([["Skill Fit", aiAnalysis.matchScore.skillMatch], ["Experience", aiAnalysis.matchScore.experienceMatch], ["Location", aiAnalysis.matchScore.locationMatch], ["Salary", aiAnalysis.matchScore.salaryMatch], ["Education", aiAnalysis.matchScore.educationMatch]] as [string, number][]).map(([label, value]) => (
+                            <div key={label} className="text-center p-3 rounded-xl bg-muted/40 border border-border/40">
+                              <div className="text-xl font-extrabold text-emerald-400">{value}%</div>
+                              <div className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">{label}</div>
+                              <div className="w-full bg-muted rounded-full h-1 mt-2"><div className="bg-emerald-500 h-1 rounded-full" style={{ width: `${(value ?? 0)}%` }} /></div>
+                            </div>
+                          ))}
                         </div>
-                        {aiAnalysis.matchScore.summary && <p className="text-xs text-muted-foreground mt-3 italic">"{aiAnalysis.matchScore.summary}"</p>}
+                        <div className="grid grid-cols-2 gap-4 text-xs">
+                          <div className="bg-emerald-500/5 p-3 rounded-xl border border-emerald-500/10"><p className="text-emerald-400 font-bold mb-2">✅ Matched Skills</p><div className="flex flex-wrap gap-1">{aiAnalysis.matchScore.matchedSkills?.map((s: string) => <span key={s} className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] rounded-md font-semibold border border-emerald-500/20">{s}</span>)}</div></div>
+                          <div className="bg-red-500/5 p-3 rounded-xl border border-red-500/10"><p className="text-red-400 font-bold mb-2">⚠️ Missing Skills</p><div className="flex flex-wrap gap-1">{aiAnalysis.matchScore.missingSkills?.map((s: string) => <span key={s} className="px-2 py-0.5 bg-red-500/10 text-red-400 text-[10px] rounded-md font-semibold border border-red-500/20">{s}</span>)}</div></div>
+                        </div>
                       </CardContent>
                     </Card>
                   )}
-                  {aiAnalysis.summary && (
+                  {aiAnalysis.summary && typeof aiAnalysis.summary === "object" && (
+                    <Card className="border border-border/80 shadow-sm p-2">
+                      <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                          <CardTitle className="text-base font-bold flex items-center gap-2">📝 AI Executive Summary</CardTitle>
+                          <CardDescription>Comprehensive candidate analysis</CardDescription>
+                        </div>
+                        {aiAnalysis.summary.confidenceScore && (
+                          <div className="text-right">
+                            <span className="text-xs text-muted-foreground block font-bold mb-1">Confidence Score</span>
+                            <span className="px-3 py-1 bg-violet-500/20 text-violet-400 rounded-full text-xs font-extrabold border border-violet-500/30">{aiAnalysis.summary.confidenceScore}%</span>
+                          </div>
+                        )}
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        <div className="bg-muted/30 p-4 rounded-xl border border-border/50 text-sm leading-relaxed text-foreground/90">
+                          {aiAnalysis.summary.executiveSummary}
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Strengths */}
+                          <div className="space-y-3">
+                            <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2"><Sparkles className="h-3 w-3" /> Strengths</h4>
+                            <ul className="space-y-2">
+                              {aiAnalysis.summary.strengths?.map((s: string, i: number) => (
+                                <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-emerald-500 mt-0.5">•</span> {s}</li>
+                              ))}
+                            </ul>
+                          </div>
+                          {/* Weaknesses / Risks */}
+                          <div className="space-y-3">
+                            <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2"><ShieldAlert className="h-3 w-3" /> Risks & Weaknesses</h4>
+                            <ul className="space-y-2">
+                              {aiAnalysis.summary.riskFactors?.length > 0 ? (
+                                aiAnalysis.summary.riskFactors.map((r: string, i: number) => (
+                                  <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-amber-500 mt-0.5">•</span> {r}</li>
+                                ))
+                              ) : aiAnalysis.summary.weaknesses?.map((w: string, i: number) => (
+                                <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-amber-500 mt-0.5">•</span> {w}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+
+                        {aiAnalysis.summary.interviewTips?.length > 0 && (
+                          <div className="bg-blue-500/5 p-4 rounded-xl border border-blue-500/10">
+                            <h4 className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">💡 Interview Tips</h4>
+                            <ul className="space-y-1.5">
+                              {aiAnalysis.summary.interviewTips.map((tip: string, i: number) => (
+                                <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-blue-400 font-bold shrink-0">{i + 1}.</span> {tip}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        
+                        {aiAnalysis.summary.hiringRecommendation && (
+                          <div className="flex items-center gap-3 pt-2 border-t border-border/40">
+                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Verdict</span>
+                            <span className={`text-xs px-3 py-1 rounded-full font-bold border ${
+                              aiAnalysis.summary.hiringRecommendation === "STRONG_HIRE" || aiAnalysis.summary.hiringRecommendation === "HIRE" 
+                                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" 
+                                : aiAnalysis.summary.hiringRecommendation === "REJECT" 
+                                ? "bg-red-500/20 text-red-400 border-red-500/30" 
+                                : "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                            }`}>{aiAnalysis.summary.hiringRecommendation.replace("_", " ")}</span>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+                  {aiAnalysis.summary && typeof aiAnalysis.summary === "string" && (
                     <Card className="border border-border/80 shadow-sm p-2">
                       <CardHeader><CardTitle className="text-base font-bold">📝 AI Generated Summary</CardTitle></CardHeader>
                       <CardContent><p className="text-sm text-muted-foreground leading-relaxed">{aiAnalysis.summary}</p></CardContent>
@@ -840,6 +951,20 @@ export default function CandidateDetailPage() {
           isLoading={updateMutation.isPending}
         />
       </Dialog>
+
+      {/* Communication Modals */}
+      <EmailComposer
+        candidateEmail={candidate.email}
+        pipelineId={pipelineId}
+        isOpen={isEmailModalOpen}
+        onClose={() => setIsEmailModalOpen(false)}
+      />
+      <WhatsAppComposer
+        candidatePhone={candidate.phone}
+        pipelineId={pipelineId}
+        isOpen={isWhatsAppModalOpen}
+        onClose={() => setIsWhatsAppModalOpen(false)}
+      />
     </div>
   );
 }

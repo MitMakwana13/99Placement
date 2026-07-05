@@ -157,4 +157,100 @@ router.post("/assessments/:id/submit", requireAuth, async (req, res): Promise<vo
   res.json({ ...updated, questions });
 });
 
+// ─── PUBLIC ROUTES FOR CANDIDATES (NO AUTH REQUIRED) ──────────────────────────
+import { prisma } from "@workspace/db-prisma";
+import { AssessmentService } from "../../services/assessment.service";
+import { SubscriptionService } from "../../services/subscription.service";
+
+async function checkCandidatePortalFeature(tenantId: string, res: any): Promise<boolean> {
+  const subscription = await SubscriptionService.getSubscription(tenantId);
+  const features = (subscription?.plan?.features as any) || {};
+  if (!features.candidatePortal) {
+    res.status(402).json({ error: "Candidate Portal timed assessment feature is disabled under this workspace's current plan." });
+    return false;
+  }
+  return true;
+}
+
+// 1. Get assessment test by ID (Candidate View - Sanitized options/correct answers)
+router.get("/public/assessments/:id", async (req, res): Promise<void> => {
+  const id = req.params.id;
+  try {
+    const testRecord = await prisma.assessmentTest.findUnique({ where: { id } });
+    if (!testRecord) {
+      res.status(404).json({ error: "Assessment session not found" });
+      return;
+    }
+    const isAllowed = await checkCandidatePortalFeature(testRecord.tenantId, res);
+    if (!isAllowed) return;
+
+    const sanitizedTest = await AssessmentService.findTestForCandidate(testRecord.tenantId, id);
+    res.json(sanitizedTest);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. Start assessment test (Candidate Action)
+router.post("/public/assessments/:id/start", async (req, res): Promise<void> => {
+  const id = req.params.id;
+  try {
+    const testRecord = await prisma.assessmentTest.findUnique({ where: { id } });
+    if (!testRecord) {
+      res.status(404).json({ error: "Assessment session not found" });
+      return;
+    }
+    const isAllowed = await checkCandidatePortalFeature(testRecord.tenantId, res);
+    if (!isAllowed) return;
+
+    const startedTest = await AssessmentService.startTest(testRecord.tenantId, id, "CANDIDATE");
+    res.json(startedTest);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. Submit single answer (Candidate Action - Auto-save)
+router.post("/public/assessments/:id/answers", async (req, res): Promise<void> => {
+  const id = req.params.id;
+  const { questionId, selectedOption } = req.body;
+  if (!questionId || selectedOption == null) {
+    res.status(400).json({ error: "questionId and selectedOption are required" });
+    return;
+  }
+  try {
+    const testRecord = await prisma.assessmentTest.findUnique({ where: { id } });
+    if (!testRecord) {
+      res.status(404).json({ error: "Assessment session not found" });
+      return;
+    }
+    const isAllowed = await checkCandidatePortalFeature(testRecord.tenantId, res);
+    if (!isAllowed) return;
+
+    const result = await AssessmentService.submitAnswer(testRecord.tenantId, id, questionId, selectedOption);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 4. Complete and Grade Assessment (Candidate Action - Final submit)
+router.post("/public/assessments/:id/submit", async (req, res): Promise<void> => {
+  const id = req.params.id;
+  try {
+    const testRecord = await prisma.assessmentTest.findUnique({ where: { id } });
+    if (!testRecord) {
+      res.status(404).json({ error: "Assessment session not found" });
+      return;
+    }
+    const isAllowed = await checkCandidatePortalFeature(testRecord.tenantId, res);
+    if (!isAllowed) return;
+
+    const completedTest = await AssessmentService.completeTest(testRecord.tenantId, id, "CANDIDATE");
+    res.json(completedTest);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

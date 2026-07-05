@@ -33,4 +33,12 @@ export class AppError extends Error {
   static conflict(message: string, code: string = "CONFLICT"): AppError {
     return new AppError(message, 409, code);
   }
+
+  static paymentRequired(message: string, code: string = "PAYMENT_REQUIRED", details: unknown = null): AppError {
+    return new AppError(message, 402, code, details);
+  }
+
+  static unprocessable(message: string, code: string = "UNPROCESSABLE", details: unknown = null): AppError {
+    return new AppError(message, 422, code, details);
+  }
 }
