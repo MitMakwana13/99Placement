@@ -11,7 +11,7 @@ interface UiState {
 
 export const useUiStore = create<UiState>((set) => ({
   sidebarOpen: true,
-  theme: "dark", // default theme
+  theme: "light",
 
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   

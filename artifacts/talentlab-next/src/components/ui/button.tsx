@@ -3,19 +3,19 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { twMerge } from "tailwind-merge";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98] cursor-pointer will-change-transform",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 active:scale-[0.99] cursor-pointer will-change-transform",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_1px_2px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.1)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.1)] hover:-translate-y-[1px]",
+          "bg-primary text-primary-foreground shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_24px_rgba(189,147,54,0.16),inset_0_1px_0_rgba(255,255,255,0.45)] hover:bg-primary/95 hover:shadow-[0_1px_2px_rgba(16,24,40,0.08),0_14px_30px_rgba(189,147,54,0.22),inset_0_1px_0_rgba(255,255,255,0.5)] hover:-translate-y-[1px]",
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm hover:shadow-md hover:-translate-y-[1px]",
         outline:
-          "border border-border/80 bg-card hover:bg-accent/50 text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:border-border hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]",
+          "border border-border/80 bg-card/88 text-foreground shadow-[0_1px_2px_rgba(16,24,40,0.04)] hover:bg-accent/70 hover:border-border/90 hover:shadow-[0_10px_20px_rgba(15,23,42,0.06)]",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:-translate-y-[1px]",
-        ghost: "hover:bg-muted/50 hover:text-foreground text-muted-foreground",
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:-translate-y-[1px] shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]",
+        ghost: "hover:bg-muted/70 hover:text-foreground text-muted-foreground",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

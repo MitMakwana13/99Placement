@@ -23,9 +23,10 @@ import {
   Moon,
   ChevronLeft,
   User,
-  Sparkles,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { Logo } from "@/components/Logo";
 import { CopilotChat } from "@/components/CopilotChat";
 import { CommandPalette } from "@/components/ui/command-palette";
@@ -75,7 +76,7 @@ export default function DashboardLayout({
     if (cachedTheme) {
       setTheme(cachedTheme);
     } else {
-      setTheme("dark");
+      setTheme("light");
     }
   }, [setTheme]);
 
@@ -88,11 +89,11 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen flex bg-background text-foreground transition-all duration-300">
+    <div className="app-noise min-h-screen flex bg-background text-foreground transition-all duration-300">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-ink/40 z-30 md:hidden"
+          className="fixed inset-0 z-30 bg-slate-950/18 backdrop-blur-sm md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -103,16 +104,35 @@ export default function DashboardLayout({
           sidebarOpen ? "translate-x-0" : "-translate-x-full md:hidden"
         }`}
       >
-        <div className="flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center">
-            <Logo className="h-10 w-auto" />
+        <div className="glass-panel flex items-center justify-between rounded-[1.8rem] px-4 py-4">
+          <Link href="/dashboard" className="flex items-center gap-3">
+            <div className="overflow-hidden rounded-2xl border border-white/70 bg-white/90 p-1 shadow-[0_8px_20px_rgba(15,23,42,0.07)] dark:border-white/10 dark:bg-white/8">
+              <Image
+                src="/brand/99-placement-logo.png"
+                alt="99 Placement brand"
+                width={36}
+                height={36}
+                className="h-9 w-9 rounded-[0.85rem] object-cover"
+                priority
+              />
+            </div>
+            <div className="space-y-0.5">
+              <Logo className="h-6 w-auto" />
+              <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground">Recruitment OS</p>
+            </div>
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="md:hidden p-1.5 rounded-xl text-sidebar-foreground/70 hover:text-white hover:bg-sidebar-accent/50 cursor-pointer"
+            className="md:hidden rounded-xl p-1.5 text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-foreground cursor-pointer"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
+        </div>
+
+        <div className="rounded-[1.8rem] border border-sidebar-border/70 bg-sidebar-accent/72 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Workspace</p>
+          <p className="mt-2 text-base font-semibold tracking-[-0.04em] text-foreground">99 Placement</p>
+          <p className="mt-1 text-sm text-muted-foreground">Enterprise recruiting, refined for day-to-day speed.</p>
         </div>
 
         {/* Sidebar Nav list */}
@@ -124,10 +144,10 @@ export default function DashboardLayout({
               <Link
                 key={item.name}
                 href={item.href}
-                className={`flex items-center space-x-3 px-4 py-3 rounded-2xl font-medium transition-all duration-200 ${
+                className={`flex items-center space-x-3 rounded-2xl px-4 py-3 font-medium transition-all duration-200 ${
                   isActive
-                    ? "bg-sidebar-accent text-white shadow-sm"
-                    : "text-sidebar-foreground/80 hover:text-white hover:bg-sidebar-accent/40"
+                    ? "bg-card/92 text-foreground shadow-[0_14px_32px_rgba(15,23,42,0.08)]"
+                    : "text-sidebar-foreground/85 hover:bg-sidebar-accent/50 hover:text-foreground"
                 }`}
               >
                 <Icon className={`h-4.5 w-4.5 ${isActive ? "text-primary" : ""}`} />
@@ -138,19 +158,19 @@ export default function DashboardLayout({
         </nav>
 
         {/* User Card & Logout */}
-        <div className="border-t border-sidebar-border/40 pt-4 space-y-3">
-          <div className="flex items-center gap-3 px-2">
-            <div className="h-9 w-9 rounded-xl bg-sidebar-accent flex items-center justify-center text-sidebar-primary-foreground font-semibold">
+        <div className="border-t border-sidebar-border/50 pt-4 space-y-3">
+          <div className="glass-panel flex items-center gap-3 rounded-[1.6rem] px-3 py-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sidebar-accent text-sidebar-primary-foreground font-semibold">
               <User className="h-4.5 w-4.5 text-primary" />
             </div>
             <div className="overflow-hidden">
-              <p className="text-xs font-bold text-white truncate">{user.name}</p>
-              <p className="text-[10px] text-sidebar-foreground/60 truncate">{user.role}</p>
+              <p className="truncate text-sm font-semibold text-foreground">{user.name}</p>
+              <p className="truncate text-[11px] text-muted-foreground">{user.role}</p>
             </div>
           </div>
           <button
             onClick={logout}
-            className="flex items-center space-x-3 px-4 py-3 rounded-2xl text-red-400 hover:text-red-300 hover:bg-red-950/20 font-medium transition-all w-full text-left cursor-pointer"
+            className="flex w-full items-center space-x-3 rounded-2xl px-4 py-3 text-left font-medium text-rose-500 transition-all hover:bg-rose-50 hover:text-rose-600 cursor-pointer dark:hover:bg-rose-950/20"
           >
             <LogOut className="h-4.5 w-4.5" />
             <span className="text-sm">Sign Out</span>
@@ -161,40 +181,48 @@ export default function DashboardLayout({
       {/* Main viewport panels */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header control bar */}
-        <header className="h-16 border-b border-border bg-card/60 backdrop-blur-md flex items-center justify-between px-6 sticky top-0 z-20">
+        <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-border/80 bg-background/72 px-6 backdrop-blur-2xl">
           <div className="flex items-center gap-3">
             <button
               onClick={toggleSidebar}
-              className="p-2 hover:bg-muted/40 rounded-xl transition-all cursor-pointer"
+              className="rounded-2xl border border-border/70 bg-card/80 p-2.5 shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition-all hover:bg-muted/50 cursor-pointer"
             >
               <Menu className="h-5 w-5" />
             </button>
-            <span className="text-xs font-medium text-muted-foreground hidden sm:inline-block">
-              99 Placement / {pathname.replace("/dashboard", "").replace("/", "") || "Home"}
-            </span>
+            <div className="hidden sm:block">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">99 Placement</p>
+              <p className="text-sm font-semibold tracking-[-0.03em] text-foreground">
+                {pathname.replace("/dashboard", "").replace("/", "") || "Home"}
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
+            <div className="hidden items-center gap-2 rounded-full border border-border/70 bg-card/82 px-4 py-2 text-sm text-muted-foreground shadow-[0_10px_22px_rgba(15,23,42,0.04)] md:flex">
+              <Search className="h-4 w-4" />
+              <span>Search, jump, or run commands</span>
+              <span className="rounded-md border border-border/80 px-1.5 py-0.5 text-[10px] font-semibold text-foreground">⌘K</span>
+            </div>
             {/* Theme switcher */}
             <button
               onClick={toggleTheme}
-              className="p-2 hover:bg-muted/40 rounded-xl transition-all cursor-pointer text-muted-foreground hover:text-foreground"
+              className="rounded-2xl border border-border/70 bg-card/82 p-2.5 text-muted-foreground shadow-[0_8px_18px_rgba(15,23,42,0.04)] transition-all hover:bg-muted/50 hover:text-foreground cursor-pointer"
               title="Toggle Theme"
             >
               {theme === "light" ? <Moon className="h-4.5 w-4.5" /> : <Sun className="h-4.5 w-4.5" />}
             </button>
 
             {/* Tenant indicator */}
-            <div className="hidden md:flex items-center gap-1 bg-muted/40 px-3 py-1.5 rounded-full text-xs font-semibold border border-border/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block animate-pulse" />
+            <div className="hidden items-center gap-2 rounded-full border border-border/70 bg-card/82 px-4 py-2 text-xs font-semibold shadow-[0_10px_22px_rgba(15,23,42,0.04)] lg:flex">
+              <span className="inline-block h-2 w-2 rounded-full bg-primary" />
               <span className="text-muted-foreground">Workspace:</span>
-              <span className="font-mono text-foreground font-bold">99 Placement</span>
+              <span className="font-semibold text-foreground">99 Placement</span>
             </div>
           </div>
         </header>
 
         {/* Dynamic page context with seamless page transitions */}
-        <main className="flex-1 p-6 md:p-8 overflow-y-auto space-y-6 relative">
+        <main className="relative flex-1 space-y-6 overflow-y-auto p-6 md:p-8">
           <AnimatePresence mode="wait">
             <motion.div
               key={pathname}

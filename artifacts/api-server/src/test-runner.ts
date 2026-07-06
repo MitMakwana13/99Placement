@@ -24,8 +24,7 @@ import { OfferService } from "./services/offer.service";
 import { OfferRepository } from "./repositories/offer.repository";
 import { JoiningService } from "./services/joining.service";
 import { JoiningRepository } from "./repositories/joining.repository";
-import { db } from "@workspace/db";
-import { requirementsTable, employeesTable } from "@workspace/db/schema";
+
 
 async function runTests() {
   logger.info("Starting Enterprise Recruitment Management System Integration Tests...");
@@ -33,13 +32,7 @@ async function runTests() {
   // Bootstrap all domain event handlers BEFORE any service calls
   bootstrapEventHandlers();
 
-  // Clear Drizzle-only tables first to avoid FK constraint violations
-  try {
-    await db.delete(requirementsTable);
-    await db.delete(employeesTable);
-  } catch (err) {
-    logger.error("Failed to clear Drizzle-only tables:", err);
-  }
+
 
   // Clear Assessment & Screening tables first (FK dependencies)
   await prisma.offerApproval.deleteMany();
