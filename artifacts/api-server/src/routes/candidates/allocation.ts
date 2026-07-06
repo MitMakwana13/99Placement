@@ -4,44 +4,52 @@
  */
 
 import { Router, type IRouter } from "express";
-import { db } from "@workspace/db";
-import { candidateAllocationStatusTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../../middleware/auth";
+import { prisma } from "@workspace/db-prisma";
+import { AllocationStatus } from "@prisma/client";
 
 const router: IRouter = Router();
 
-const VALID_STATUSES = [
-  "AVAILABLE", "ALLOCATED", "INTERVIEW_SCHEDULED", "SELECTED",
-  "OFFER_RELEASED", "JOINED", "REJECTED", "ON_HOLD", "BLACKLISTED",
-] as const;
+const VALID_STATUSES = Object.values(AllocationStatus);
 
 // ─── GET /candidates/:id/allocation ────────────────────────────────────────────
 router.get("/candidates/:id/allocation", requireAuth, async (req, res): Promise<void> => {
   const candidateId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { tenantId } = req.context;
+  const tenantId = req.context?.tenantId || req.user?.tenantId;
 
-  const [status] = await db
-    .select()
-    .from(candidateAllocationStatusTable)
-    .where(
-      and(
-        eq(candidateAllocationStatusTable.candidateId, candidateId),
-        eq(candidateAllocationStatusTable.tenantId, tenantId),
-      ),
-    );
+  if (!tenantId) {
+    res.status(401).json({ error: "Tenant isolation context missing." });
+    return;
+  }
 
-  // Return default AVAILABLE if no record exists yet
-  res.json(status ?? { candidateId, status: "AVAILABLE", reason: null });
+  try {
+    const status = await prisma.candidateAllocationStatus.findFirst({
+      where: {
+        candidateId,
+        tenantId,
+      },
+    });
+
+    // Return default AVAILABLE if no record exists yet
+    res.json(status ?? { candidateId, status: AllocationStatus.AVAILABLE, reason: null });
+  } catch (err: any) {
+    console.error("Error fetching allocation status:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ─── PATCH /candidates/:id/allocation ──────────────────────────────────────────
 router.patch("/candidates/:id/allocation", requireAuth, async (req, res): Promise<void> => {
   const candidateId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { tenantId } = req.context;
+  const tenantId = req.context?.tenantId || req.user?.tenantId;
   const { status, reason } = req.body;
 
-  if (!status || !VALID_STATUSES.includes(status)) {
+  if (!tenantId) {
+    res.status(401).json({ error: "Tenant isolation context missing." });
+    return;
+  }
+
+  if (!status || !VALID_STATUSES.includes(status as any)) {
     res.status(400).json({
       error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}`,
     });
@@ -50,30 +58,46 @@ router.patch("/candidates/:id/allocation", requireAuth, async (req, res): Promis
 
   const updatedById = req.employee?.employeeId ?? req.user?.userId;
 
-  // Check if record exists
-  const [existing] = await db
-    .select({ id: candidateAllocationStatusTable.id })
-    .from(candidateAllocationStatusTable)
-    .where(
-      and(
-        eq(candidateAllocationStatusTable.candidateId, candidateId),
-        eq(candidateAllocationStatusTable.tenantId, tenantId),
-      ),
-    );
+  try {
+    // Check if record exists
+    const existing = await prisma.candidateAllocationStatus.findFirst({
+      where: {
+        candidateId,
+        tenantId,
+      },
+      select: {
+        id: true,
+      },
+    });
 
-  if (existing) {
-    const [updated] = await db
-      .update(candidateAllocationStatusTable)
-      .set({ status, reason: reason ?? null, updatedById, updatedAt: new Date() })
-      .where(eq(candidateAllocationStatusTable.id, existing.id))
-      .returning();
-    res.json(updated);
-  } else {
-    const [created] = await db
-      .insert(candidateAllocationStatusTable)
-      .values({ tenantId, candidateId, status, reason: reason ?? null, updatedById })
-      .returning();
-    res.status(201).json(created);
+    if (existing) {
+      const updated = await prisma.candidateAllocationStatus.update({
+        where: {
+          id: existing.id,
+        },
+        data: {
+          status: status as AllocationStatus,
+          reason: reason ?? null,
+          updatedById,
+          updatedAt: new Date(),
+        },
+      });
+      res.json(updated);
+    } else {
+      const created = await prisma.candidateAllocationStatus.create({
+        data: {
+          tenantId,
+          candidateId,
+          status: status as AllocationStatus,
+          reason: reason ?? null,
+          updatedById,
+        },
+      });
+      res.status(201).json(created);
+    }
+  } catch (err: any) {
+    console.error("Error updating candidate allocation status:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -1,16 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db } from "@workspace/db";
 import { prisma } from "@workspace/db-prisma";
-import {
-  requirementsTable,
-  candidatePipelineTable,
-  clientInterviewsTable,
-  offerLettersTable,
-  joiningStatusTable,
-  candidatesTable,
-  companiesTable,
-} from "@workspace/db/schema";
-import { eq, isNull, and, gte, lte, count, desc } from "drizzle-orm";
 import { requireAuth } from "../../middleware/auth";
 import { AppError } from "../../utils/app-error";
 import { cacheMiddleware } from "../../middleware/cache.middleware";
@@ -36,60 +25,54 @@ router.get("/dashboard/summary", requireAuth, cacheMiddleware("dashboard", 60), 
     const todayEnd = new Date(todayStart);
     todayEnd.setDate(todayStart.getDate() + 1);
 
-    const [openReqs] = await db
-      .select({ count: count() })
-      .from(requirementsTable)
-      .where(
-        and(
-          eq(requirementsTable.tenantId, tenantId),
-          eq(requirementsTable.status, "open"),
-          isNull(requirementsTable.deletedAt)
-        )
-      );
+    const openReqs = await prisma.job.count({
+      where: {
+        tenantId,
+        status: "OPEN",
+        deletedAt: null,
+      },
+    });
 
-    const [activeCandidates] = await db
-      .select({ count: count() })
-      .from(candidatePipelineTable)
-      .where(eq(candidatePipelineTable.tenantId, tenantId));
+    const activeCandidates = await prisma.candidatePipeline.count({
+      where: {
+        tenantId,
+        deletedAt: null,
+      },
+    });
 
-    const [weekInterviews] = await db
-      .select({ count: count() })
-      .from(clientInterviewsTable)
-      .where(
-        and(
-          eq(clientInterviewsTable.tenantId, tenantId),
-          gte(clientInterviewsTable.scheduledAt, weekStart),
-          lte(clientInterviewsTable.scheduledAt, weekEnd)
-        )
-      );
+    const weekInterviews = await prisma.clientInterview.count({
+      where: {
+        tenantId,
+        scheduledAt: {
+          gte: weekStart,
+          lte: weekEnd,
+        },
+      },
+    });
 
-    const [pendingOffers] = await db
-      .select({ count: count() })
-      .from(offerLettersTable)
-      .where(
-        and(
-          eq(offerLettersTable.tenantId, tenantId),
-          eq(offerLettersTable.status, "sent")
-        )
-      );
+    const pendingOffers = await prisma.offerLetter.count({
+      where: {
+        tenantId,
+        status: "SENT",
+      },
+    });
 
-    const [joiningToday] = await db
-      .select({ count: count() })
-      .from(joiningStatusTable)
-      .where(
-        and(
-          eq(joiningStatusTable.tenantId, tenantId),
-          gte(joiningStatusTable.joiningDate, todayStart),
-          lte(joiningStatusTable.joiningDate, todayEnd)
-        )
-      );
+    const joiningToday = await prisma.joiningStatus.count({
+      where: {
+        tenantId,
+        joiningDate: {
+          gte: todayStart,
+          lte: todayEnd,
+        },
+      },
+    });
 
     res.json({
-      openRequirements: openReqs.count,
-      candidatesInPipeline: activeCandidates.count,
-      interviewsThisWeek: weekInterviews.count,
-      offersPending: pendingOffers.count,
-      joiningToday: joiningToday.count,
+      openRequirements: openReqs,
+      candidatesInPipeline: activeCandidates,
+      interviewsThisWeek: weekInterviews,
+      offersPending: pendingOffers,
+      joiningToday: joiningToday,
       avgTimeTofillDays: 21,
     });
   } catch (err) {
@@ -104,11 +87,16 @@ router.get("/dashboard/pipeline-funnel", requireAuth, cacheMiddleware("dashboard
       throw AppError.unauthorized("Tenant isolation context missing.");
     }
 
-    const stageCounts = await db
-      .select({ stage: candidatePipelineTable.stage, count: count() })
-      .from(candidatePipelineTable)
-      .where(eq(candidatePipelineTable.tenantId, tenantId))
-      .groupBy(candidatePipelineTable.stage);
+    const stageCounts = await prisma.candidatePipeline.groupBy({
+      by: ["stage"],
+      where: {
+        tenantId,
+        deletedAt: null,
+      },
+      _count: {
+        id: true,
+      },
+    });
 
     const labels: Record<string, string> = {
       SOURCED: "Candidate Sourcing",
@@ -123,16 +111,16 @@ router.get("/dashboard/pipeline-funnel", requireAuth, cacheMiddleware("dashboard
       DROPPED: "Dropped",
     };
 
-    const total = stageCounts.reduce((sum, s) => sum + Number(s.count), 0) || 1;
+    const total = stageCounts.reduce((sum, s) => sum + s._count.id, 0) || 1;
 
     const funnel = ["SOURCED", "SCREENED", "ASSESSED", "SHORTLISTED", "CLIENT_INTERVIEW", "OFFER", "JOINING"].map(stage => {
       const found = stageCounts.find(s => s.stage === stage);
-      const count2 = found ? Number(found.count) : 0;
+      const count = found ? found._count.id : 0;
       return {
         stage: stage.toLowerCase(),
         label: labels[stage] || stage,
-        count: count2,
-        pct: Math.round((count2 / total) * 100),
+        count,
+        pct: Math.round((count / total) * 100),
       };
     });
 
@@ -152,31 +140,52 @@ router.get("/dashboard/recent-submissions", requireAuth, async (req, res, next):
       throw AppError.unauthorized("Tenant isolation context missing.");
     }
 
-    const submissions = await db
-      .select({
-        id: candidatePipelineTable.id,
-        candidateName: candidatesTable.name,
-        candidateId: candidatesTable.id,
-        jobTitle: requirementsTable.title,
-        jobId: requirementsTable.id,
-        companyName: companiesTable.name,
-        stage: candidatePipelineTable.stage,
-        createdAt: candidatePipelineTable.createdAt,
-      })
-      .from(candidatePipelineTable)
-      .innerJoin(candidatesTable, eq(candidatePipelineTable.candidateId, candidatesTable.id))
-      .leftJoin(requirementsTable, eq(candidatePipelineTable.requirementId, requirementsTable.id))
-      .leftJoin(companiesTable, eq(requirementsTable.companyId, companiesTable.id))
-      .where(
-        and(
-          eq(candidatePipelineTable.tenantId, tenantId),
-          isNull(candidatesTable.deletedAt)
-        )
-      )
-      .orderBy(desc(candidatePipelineTable.createdAt))
-      .limit(5);
+    const submissions = await prisma.candidatePipeline.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        candidate: {
+          deletedAt: null,
+        },
+      },
+      include: {
+        candidate: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        job: {
+          select: {
+            id: true,
+            title: true,
+            company: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 5,
+    });
 
-    res.json(submissions);
+    const result = submissions.map(sub => ({
+      id: sub.id,
+      candidateName: sub.candidate.name,
+      candidateId: sub.candidate.id,
+      jobTitle: sub.job?.title || "N/A",
+      jobId: sub.job?.id || "N/A",
+      companyName: sub.job?.company?.name || "99 Placement Internal",
+      stage: sub.stage,
+      createdAt: sub.createdAt,
+    }));
+
+    res.json(result);
   } catch (err) {
     next(err);
   }

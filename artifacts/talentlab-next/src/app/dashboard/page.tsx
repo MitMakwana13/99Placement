@@ -107,6 +107,53 @@ export default function DashboardPage() {
     }
   }, [user, isLoading, router]);
 
+  useEffect(() => {
+    if (!user) return;
+
+    let active = true;
+    setIsFetching(true);
+
+    Promise.all([
+      apiClient.get<any>("dashboard/summary").catch((err) => {
+        console.error("Failed to load dashboard summary:", err);
+        return null;
+      }),
+      apiClient.get<any>("dashboard/pipeline-funnel").catch((err) => {
+        console.error("Failed to load dashboard funnel:", err);
+        return null;
+      }),
+      apiClient.get<any>("dashboard/recent-submissions").catch((err) => {
+        console.error("Failed to load recent submissions:", err);
+        return null;
+      })
+    ]).then(([summaryData, funnelData, submissionsData]) => {
+      if (!active) return;
+      if (summaryData) {
+        setSummary({
+          openRequirements: summaryData.openRequirements ?? 0,
+          candidatesInPipeline: summaryData.candidatesInPipeline ?? 0,
+          interviewsThisWeek: summaryData.interviewsThisWeek ?? 0,
+          avgTimeTofillDays: summaryData.avgTimeTofillDays ?? 14,
+        });
+      }
+      if (funnelData && Array.isArray(funnelData)) {
+        const mappedFunnel = funnelData.map((item: any) => ({
+          label: item.label || item.stage,
+          count: Number(item.count) || 0
+        }));
+        setFunnel(mappedFunnel);
+      }
+      if (submissionsData && Array.isArray(submissionsData)) {
+        setRecentSubmissions(submissionsData);
+      }
+      setIsFetching(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
   const animOpenJobs = useCountUp(summary.openRequirements);
   const animPipeline = useCountUp(summary.candidatesInPipeline);
   const animInterviews = useCountUp(summary.interviewsThisWeek);
@@ -121,7 +168,7 @@ export default function DashboardPage() {
   }
 
   const getStageColor = (stage: string) => {
-    switch (stage) {
+    switch ((stage || "").toLowerCase()) {
       case "sourced": return "bg-gray-800 text-gray-300 border-gray-700";
       case "screened": return "bg-blue-900/40 text-blue-400 border-blue-800";
       case "client_interview": return "bg-purple-900/40 text-purple-400 border-purple-800";
@@ -134,11 +181,11 @@ export default function DashboardPage() {
   const containerVariants = {
     hidden: { opacity: 0 },
     show: { opacity: 1, transition: { staggerChildren: 0.1 } }
-  };
+  } as const;
   const itemVariants = {
     hidden: { opacity: 0, y: 15 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
-  };
+    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 300, damping: 24 } }
+  } as const;
 
   return (
     <div className="space-y-8 pb-10">

@@ -1,10 +1,12 @@
 import { PrismaClient, CandidateSource, PipelineStage, SystemRole, UrgencyLevel, JobStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { RbacService } from "./services/rbac.service";
+import { redisCache } from "./config/redis";
 
 const prisma = new PrismaClient();
 
 // First Names and Last Names for mock generation
-const firstNames = ["Aarav", "Vivaan", "Aditya", "Vihaan", "Arjun", "Sai", "Reyansh", "Ayaan", "Krishna", "Ishaan", "Shaurya", "Atharva", "Kabir", "Nitin", "Rohan", "Sanjay", "Anil", "Rahul", "Vikas", "Sunil", "Diya", "Anya", "Aadhya", "Ananya", "Pari", "Saanvi", "Avni", "Kavya", "Myra", "Kiara", "Prisha", "Riya", "Nisha", "Neha", "Pooja", "Anjali", "Swati", "Shruti", "Megha", "Priya"];
+const firstNames = ["Aarav", "Vivaan", "Aditya", "Vihaan", "Arjun", "Sai", "Reyansh", "Ayaan", "Krishna", "Ishaan", "Shaurya", "Atharva", "Kabir", "Rohan", "Sanjay", "Anil", "Rahul", "Vikas", "Sunil", "Diya", "Anya", "Aadhya", "Ananya", "Pari", "Saanvi", "Avni", "Kavya", "Myra", "Kiara", "Prisha", "Riya", "Nisha", "Neha", "Pooja", "Anjali", "Swati", "Shruti", "Megha", "Priya"];
 const lastNames = ["Kumar", "Singh", "Sharma", "Patel", "Reddy", "Shah", "Nair", "Iyer", "Rao", "Jain", "Desai", "Gupta", "Mehta", "Chawla", "Bhatia", "Malhotra", "Kapur", "Das", "Bose", "Mukherjee"];
 const cities = ["Bangalore", "Mumbai", "Pune", "Hyderabad", "Chennai", "Delhi", "Gurgaon", "Noida", "Remote"];
 const skillsPool = ["React", "Node.js", "Python", "Java", "Go", "Kubernetes", "AWS", "SQL", "PostgreSQL", "Machine Learning", "Data Analysis", "Figma", "Marketing", "Sales", "HR", "C++", "C#", "Azure"];
@@ -25,6 +27,16 @@ async function runSeed() {
   const defaultTenantId = "4f019263-832c-45f4-989c-9ca1ddff6bfd";
 
   try {
+    // Ensure permissions are seeded globally
+    await RbacService.seedPermissions();
+    console.log("✅ Global standard permissions seeded.");
+
+    // Ensure default tenant roles and their permissions are initialized
+    const tenantRoles = await RbacService.initializeTenantRoles(defaultTenantId);
+    console.log("✅ Default tenant roles initialized.");
+
+    const adminRole = tenantRoles["TENANT_ADMIN"];
+
     // 0. Get or create Tenant
     let tenant = await prisma.tenant.findUnique({
       where: { id: defaultTenantId }
@@ -48,26 +60,28 @@ async function runSeed() {
     if (!recruiter) {
       const passwordHash = await bcrypt.hash("admin123", 10);
       
-      let role = await prisma.role.findFirst({ where: { name: "Recruiter" } });
-      if (!role) {
-        role = await prisma.role.create({
-          data: {
-            tenantId: defaultTenantId,
-            name: "Recruiter"
-          }
-        });
-      }
-      
       recruiter = await prisma.user.create({
         data: {
           tenantId: defaultTenantId,
           name: "Priya Sharma",
           email: "priya@99placement.com",
           passwordHash,
-          systemRole: SystemRole.RECRUITER,
-          roleId: role.id
+          systemRole: SystemRole.TENANT_ADMIN,
+          roleId: adminRole.id
         }
       });
+    } else {
+      // Migrate existing user to TENANT_ADMIN systemRole and roleId if mismatch
+      recruiter = await prisma.user.update({
+        where: { id: recruiter.id },
+        data: {
+          systemRole: SystemRole.TENANT_ADMIN,
+          roleId: adminRole.id
+        }
+      });
+      // Clear permissions cache in Redis for Priya
+      await redisCache.del(`user_permissions:${recruiter.id}`);
+      console.log(`✅ Reset cache and updated Priya to TENANT_ADMIN role`);
     }
 
     // 2. Get or create companies

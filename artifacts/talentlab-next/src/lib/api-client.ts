@@ -69,7 +69,29 @@ async function request<T>(
 
   // Handle standard envelopes: e.g. { success: true, data: ... }
   if (data && typeof data === "object" && "success" in data && "data" in data) {
-    return data.data as T;
+    const payload = data.data;
+    if (payload && typeof payload === "object" && "data" in payload && Array.isArray(payload.data)) {
+      const array = [...payload.data];
+      Object.defineProperties(array, {
+        total: { value: payload.total, enumerable: false },
+        limit: { value: payload.limit, enumerable: false },
+        offset: { value: payload.offset, enumerable: false },
+        cursor: { value: payload.cursor, enumerable: false },
+      });
+      return array as unknown as T;
+    }
+    return payload as T;
+  }
+
+  if (data && typeof data === "object" && "data" in data && Array.isArray(data.data)) {
+    const array = [...data.data];
+    Object.defineProperties(array, {
+      total: { value: data.total, enumerable: false },
+      limit: { value: data.limit, enumerable: false },
+      offset: { value: data.offset, enumerable: false },
+      cursor: { value: data.cursor, enumerable: false },
+    });
+    return array as unknown as T;
   }
 
   return data as T;

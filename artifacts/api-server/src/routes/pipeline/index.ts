@@ -1,81 +1,115 @@
 import { Router, type IRouter } from "express";
-import { db } from "@workspace/db";
-import { candidatePipelineTable, candidatesTable, activityLogsTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { prisma } from "@workspace/db-prisma";
+import { PipelineStage } from "@prisma/client";
 import { requireAuth } from "../../middleware/auth";
 import { invalidateCache } from "../../middleware/cache.middleware";
 
 const router: IRouter = Router();
 
-// Prisma owns the pipeline_stage enum with uppercase values.
-// We normalize to uppercase when reading/writing.
 const STAGES = ["SOURCED", "SCREENED", "ASSESSED", "SHORTLISTED", "CLIENT_INTERVIEW", "OFFER", "JOINING", "POST_JOINING", "REJECTED", "DROPPED"] as const;
 type StageKey = typeof STAGES[number];
 
 // Map lowercase frontend stage values to Prisma uppercase equivalents
-const normalizeStage = (s: string): StageKey => {
-  const map: Record<string, StageKey> = {
-    sourced: "SOURCED", screened: "SCREENED", assessed: "ASSESSED",
-    shortlisted: "SHORTLISTED", client_interview: "CLIENT_INTERVIEW",
-    offer: "OFFER", joining: "JOINING", post_joining: "POST_JOINING",
-    rejected: "REJECTED", dropped: "DROPPED",
+const normalizeStage = (s: string): PipelineStage => {
+  const map: Record<string, PipelineStage> = {
+    sourced: PipelineStage.SOURCED,
+    screened: PipelineStage.SCREENED,
+    assessed: PipelineStage.ASSESSED,
+    shortlisted: PipelineStage.SHORTLISTED,
+    client_interview: PipelineStage.CLIENT_INTERVIEW,
+    offer: PipelineStage.OFFER,
+    joining: PipelineStage.JOINING,
+    post_joining: PipelineStage.POST_JOINING,
+    rejected: PipelineStage.REJECTED,
+    dropped: PipelineStage.DROPPED,
   };
-  return map[s.toLowerCase()] ?? (s.toUpperCase() as StageKey);
+  return map[s.toLowerCase()] ?? (s.toUpperCase() as PipelineStage);
 };
 
-
 router.get("/pipeline", requireAuth, async (req, res): Promise<void> => {
+  const tenantId = req.user?.tenantId;
+  if (!tenantId) {
+    res.status(401).json({ error: "Tenant isolation context missing." });
+    return;
+  }
+
   const { requirementId } = req.query;
 
-  const conditions = requirementId && typeof requirementId === "string"
-    ? [eq(candidatePipelineTable.requirementId, requirementId)]
-    : [];
+  const where: any = {
+    tenantId,
+    deletedAt: null,
+  };
 
-  const entries = await db
-    .select({
-      id: candidatePipelineTable.id,
-      candidateId: candidatePipelineTable.candidateId,
-      requirementId: candidatePipelineTable.requirementId,
-      stage: candidatePipelineTable.stage,
-      assignedRecruiterId: candidatePipelineTable.assignedRecruiterId,
-      notes: candidatePipelineTable.notes,
-      stageUpdatedAt: candidatePipelineTable.stageUpdatedAt,
-      createdAt: candidatePipelineTable.createdAt,
-      candidate: {
-        id: candidatesTable.id,
-        name: candidatesTable.name,
-        initials: candidatesTable.initials,
-        email: candidatesTable.email,
-        phone: candidatesTable.phone,
-        currentRole: candidatesTable.currentRole,
-        experienceYears: candidatesTable.experienceYears,
-        location: candidatesTable.location,
-        skills: candidatesTable.skills,
-        source: candidatesTable.source,
-        currentCtc: candidatesTable.currentCtc,
-        expectedCtc: candidatesTable.expectedCtc,
-        noticeDays: candidatesTable.noticeDays,
-        summary: candidatesTable.summary,
-        resumeUrl: candidatesTable.resumeUrl,
-        createdAt: candidatesTable.createdAt,
+  if (requirementId && typeof requirementId === "string") {
+    where.jobId = requirementId;
+  }
+
+  try {
+    const entries = await prisma.candidatePipeline.findMany({
+      where,
+      include: {
+        candidate: {
+          select: {
+            id: true,
+            name: true,
+            initials: true,
+            email: true,
+            phone: true,
+            currentRole: true,
+            experienceYears: true,
+            location: true,
+            skills: true,
+            source: true,
+            currentCtc: true,
+            expectedCtc: true,
+            noticeDays: true,
+            summary: true,
+            resumeUrl: true,
+            createdAt: true,
+          },
+        },
       },
-    })
-    .from(candidatePipelineTable)
-    .leftJoin(candidatesTable, eq(candidatePipelineTable.candidateId, candidatesTable.id))
-    .where(conditions.length ? and(...conditions) : undefined);
+    });
 
-  const kanban: Record<string, typeof entries> = Object.fromEntries(STAGES.map(s => [s.toLowerCase(), []]));
-  entries.forEach(e => {
-    const key = (e.stage ?? "").toLowerCase();
-    // Normalize CLIENT_INTERVIEW -> client_interview etc.
-    const normalizedKey = key.replace(/_([a-z])/g, (_, c) => `_${c}`);
-    if (normalizedKey in kanban) kanban[normalizedKey].push(e);
-  });
+    const mappedEntries = entries.map(e => ({
+      id: e.id,
+      candidateId: e.candidateId,
+      requirementId: e.jobId,
+      stage: e.stage,
+      assignedRecruiterId: e.assignedRecruiterId,
+      notes: e.notes,
+      stageUpdatedAt: e.stageUpdatedAt,
+      createdAt: e.createdAt,
+      candidate: e.candidate,
+    }));
 
-  res.json(kanban);
+    const kanban: Record<string, typeof mappedEntries> = Object.fromEntries(
+      STAGES.map(s => [s.toLowerCase(), []])
+    );
+
+    mappedEntries.forEach(e => {
+      const key = (e.stage ?? "").toLowerCase();
+      // Normalize client_interview / client-interview matches
+      const normalizedKey = key.replace(/_([a-z])/g, (_, c) => `_${c}`);
+      if (normalizedKey in kanban) {
+        kanban[normalizedKey].push(e);
+      }
+    });
+
+    res.json(kanban);
+  } catch (err: any) {
+    console.error("Error fetching pipeline entries:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.patch("/pipeline/:id/stage", requireAuth, async (req, res): Promise<void> => {
+  const tenantId = req.user?.tenantId;
+  if (!tenantId) {
+    res.status(401).json({ error: "Tenant isolation context missing." });
+    return;
+  }
+
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const { stage, notes } = req.body;
 
@@ -84,34 +118,45 @@ router.patch("/pipeline/:id/stage", requireAuth, async (req, res): Promise<void>
     return;
   }
 
-  const [entry] = await db
-    .update(candidatePipelineTable)
-    .set({ stage: normalizeStage(stage), notes, stageUpdatedAt: new Date(), updatedAt: new Date() })
-    .where(eq(candidatePipelineTable.id, id))
-    .returning();
+  try {
+    const entry = await prisma.candidatePipeline.update({
+      where: {
+        id,
+        tenantId,
+      },
+      data: {
+        stage: normalizeStage(stage),
+        notes,
+        stageUpdatedAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
 
-  if (!entry) {
-    res.status(404).json({ error: "Pipeline entry not found" });
-    return;
+    // Log activity
+    await prisma.activityLog.create({
+      data: {
+        tenantId,
+        entityType: "pipeline",
+        entityId: id,
+        action: `stage_changed_to_${stage}`,
+        performedById: req.employee?.employeeId || req.user?.userId,
+        metadata: notes ? { notes } : undefined,
+      },
+    });
+
+    const tenant = tenantId || "global";
+    invalidateCache("dashboard", tenant).catch((err) => {
+      console.error("Failed to invalidate dashboard cache on stage update:", err);
+    });
+
+    res.json({
+      ...entry,
+      requirementId: entry.jobId, // align with DRIZZLE field mapping
+    });
+  } catch (err: any) {
+    console.error("Error updating pipeline stage:", err);
+    res.status(500).json({ error: err.message });
   }
-
-  const { tenantId } = req.context;
-  // Log activity
-  await db.insert(activityLogsTable).values({
-    tenantId,
-    entityType: "pipeline",
-    entityId: id,
-    action: `stage_changed_to_${stage}`,
-    performedById: req.employee?.employeeId,
-    metadata: { notes },
-  });
-
-  const tenant = tenantId || req.user?.tenantId || "global";
-  invalidateCache("dashboard", tenant).catch((err) => {
-    console.error("Failed to invalidate dashboard cache on stage update:", err);
-  });
-
-  res.json(entry);
 });
 
 export default router;

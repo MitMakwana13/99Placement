@@ -1,16 +1,18 @@
 import { Router, type IRouter } from "express";
-import { db } from "@workspace/db";
-import { screeningInterviewsTable, screeningCriteriaScoresTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { prisma } from "@workspace/db-prisma";
 import { requireAuth } from "../../middleware/auth";
+import { type Verdict } from "@prisma/client";
 
 const router: IRouter = Router();
 
 async function getScreeningWithCriteria(id: string) {
-  const [screening] = await db.select().from(screeningInterviewsTable).where(eq(screeningInterviewsTable.id, id));
-  if (!screening) return null;
-  const criteriaScores = await db.select().from(screeningCriteriaScoresTable).where(eq(screeningCriteriaScoresTable.screeningId, id));
-  return { ...screening, criteriaScores };
+  const screening = await prisma.screeningInterview.findUnique({
+    where: { id },
+    include: {
+      criteriaScores: true,
+    },
+  });
+  return screening;
 }
 
 router.post("/screening", requireAuth, async (req, res): Promise<void> => {
@@ -21,28 +23,27 @@ router.post("/screening", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const [screening] = await db
-    .insert(screeningInterviewsTable)
-    .values({
+  const screening = await prisma.screeningInterview.create({
+    data: {
       tenantId,
       pipelineId,
       interviewerId,
       scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
       mode: mode || "phone",
       notes,
-    })
-    .returning();
+    },
+  });
 
   if (criteriaScores && Array.isArray(criteriaScores)) {
-    await db.insert(screeningCriteriaScoresTable).values(
-      criteriaScores.map((c: { criterion: string; score: number; notes?: string }) => ({
+    await prisma.screeningCriteriaScore.createMany({
+      data: criteriaScores.map((c: { criterion: string; score: number; notes?: string }) => ({
         tenantId,
         screeningId: screening.id,
         criterion: c.criterion,
         score: c.score,
         notes: c.notes,
-      }))
-    );
+      })),
+    });
   }
 
   const result = await getScreeningWithCriteria(screening.id);
@@ -64,28 +65,37 @@ router.patch("/screening/:id", requireAuth, async (req, res): Promise<void> => {
   const { tenantId } = req.context;
   const { scheduledAt, mode, notes, criteriaScores } = req.body;
 
-  const [existing] = await db.select({ id: screeningInterviewsTable.id }).from(screeningInterviewsTable).where(eq(screeningInterviewsTable.id, id));
+  const existing = await prisma.screeningInterview.findUnique({
+    where: { id },
+    select: { id: true },
+  });
   if (!existing) {
     res.status(404).json({ error: "Screening not found" });
     return;
   }
 
-  await db
-    .update(screeningInterviewsTable)
-    .set({ scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined, mode, notes, updatedAt: new Date() })
-    .where(eq(screeningInterviewsTable.id, id));
+  await prisma.screeningInterview.update({
+    where: { id },
+    data: {
+      scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+      mode,
+      notes,
+    },
+  });
 
   if (criteriaScores && Array.isArray(criteriaScores)) {
-    await db.delete(screeningCriteriaScoresTable).where(eq(screeningCriteriaScoresTable.screeningId, id));
-    await db.insert(screeningCriteriaScoresTable).values(
-      criteriaScores.map((c: { criterion: string; score: number; notes?: string }) => ({
+    await prisma.screeningCriteriaScore.deleteMany({
+      where: { screeningId: id },
+    });
+    await prisma.screeningCriteriaScore.createMany({
+      data: criteriaScores.map((c: { criterion: string; score: number; notes?: string }) => ({
         tenantId,
         screeningId: id,
         criterion: c.criterion,
         score: c.score,
         notes: c.notes,
-      }))
-    );
+      })),
+    });
   }
 
   const result = await getScreeningWithCriteria(id);
@@ -100,16 +110,24 @@ router.post("/screening/:id/submit", requireAuth, async (req, res): Promise<void
     return;
   }
 
-  const [existing] = await db.select({ id: screeningInterviewsTable.id }).from(screeningInterviewsTable).where(eq(screeningInterviewsTable.id, id));
+  const existing = await prisma.screeningInterview.findUnique({
+    where: { id },
+    select: { id: true },
+  });
   if (!existing) {
     res.status(404).json({ error: "Screening not found" });
     return;
   }
 
-  await db
-    .update(screeningInterviewsTable)
-    .set({ verdict, overallScore, notes, conductedAt: new Date(), updatedAt: new Date() })
-    .where(eq(screeningInterviewsTable.id, id));
+  await prisma.screeningInterview.update({
+    where: { id },
+    data: {
+      verdict: verdict as Verdict,
+      overallScore: overallScore !== undefined ? Number(overallScore) : undefined,
+      notes,
+      conductedAt: new Date(),
+    },
+  });
 
   const result = await getScreeningWithCriteria(id);
   res.json(result);

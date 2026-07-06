@@ -5,9 +5,6 @@
  */
 
 import { Router, type IRouter } from "express";
-import { db } from "@workspace/db";
-import { candidateShareLinksTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../../middleware/auth";
 import { prisma } from "@workspace/db-prisma";
 import { SubscriptionService } from "../../services/subscription.service";
@@ -46,17 +43,16 @@ router.post("/share/candidate/:pipelineId", requireAuth, async (req, res): Promi
   const token = crypto.randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000);
 
-  const [link] = await db
-    .insert(candidateShareLinksTable)
-    .values({
+  const link = await prisma.candidateShareLink.create({
+    data: {
       tenantId,
       pipelineId,
       token,
       expiresAt,
-      isActive: "true",
+      isActive: true,
       createdById: req.employee?.employeeId ?? req.user?.userId,
-    })
-    .returning();
+    },
+  });
 
   const shareUrl = `${process.env.CLIENT_URL ?? "http://localhost:3000"}/share/${token}`;
 
@@ -69,10 +65,12 @@ router.get("/share/links/:pipelineId", requireAuth, async (req, res): Promise<vo
   const pipelineId = Array.isArray(req.params.pipelineId) ? req.params.pipelineId[0] : req.params.pipelineId;
   const { tenantId } = req.context;
 
-  const links = await db
-    .select()
-    .from(candidateShareLinksTable)
-    .where(and(eq(candidateShareLinksTable.pipelineId, pipelineId), eq(candidateShareLinksTable.tenantId, tenantId)));
+  const links = await prisma.candidateShareLink.findMany({
+    where: {
+      pipelineId,
+      tenantId,
+    },
+  });
 
   res.json(links);
 });
@@ -81,10 +79,10 @@ router.get("/share/links/:pipelineId", requireAuth, async (req, res): Promise<vo
 router.delete("/share/:token", requireAuth, async (req, res): Promise<void> => {
   const token = Array.isArray(req.params.token) ? req.params.token[0] : req.params.token;
 
-  await db
-    .update(candidateShareLinksTable)
-    .set({ isActive: "false" })
-    .where(eq(candidateShareLinksTable.token, token));
+  await prisma.candidateShareLink.update({
+    where: { token },
+    data: { isActive: false },
+  });
 
   res.sendStatus(204);
 });
@@ -94,12 +92,11 @@ router.delete("/share/:token", requireAuth, async (req, res): Promise<void> => {
 router.get("/share/:token", async (req, res): Promise<void> => {
   const token = Array.isArray(req.params.token) ? req.params.token[0] : req.params.token;
 
-  const [link] = await db
-    .select()
-    .from(candidateShareLinksTable)
-    .where(and(eq(candidateShareLinksTable.token, token), eq(candidateShareLinksTable.isActive, "true")));
+  const link = await prisma.candidateShareLink.findUnique({
+    where: { token },
+  });
 
-  if (!link) {
+  if (!link || !link.isActive) {
     res.status(404).json({ error: "Share link not found or has been revoked" });
     return;
   }
@@ -119,10 +116,10 @@ router.get("/share/:token", async (req, res): Promise<void> => {
 
   // Mark as viewed (first view)
   if (!link.viewedAt) {
-    await db
-      .update(candidateShareLinksTable)
-      .set({ viewedAt: new Date() })
-      .where(eq(candidateShareLinksTable.token, token));
+    await prisma.candidateShareLink.update({
+      where: { token },
+      data: { viewedAt: new Date() },
+    });
   }
 
   // Fetch full candidate data
@@ -163,10 +160,9 @@ router.get("/share/:token", async (req, res): Promise<void> => {
   }
 
   // Fetch AI analysis if exists
-  const [aiAnalysis] = await db
-    .select()
-    .from((await import("@workspace/db/schema")).aiAnalysesTable)
-    .where(eq((await import("@workspace/db/schema")).aiAnalysesTable.pipelineId, link.pipelineId));
+  const aiAnalysis = await prisma.aiAnalysis.findFirst({
+    where: { pipelineId: link.pipelineId },
+  });
 
   // Return sanitized public profile
   const { candidate } = pipeline;
@@ -206,12 +202,11 @@ router.post("/share/:token/decision", async (req, res): Promise<void> => {
     return;
   }
 
-  const [link] = await db
-    .select()
-    .from(candidateShareLinksTable)
-    .where(and(eq(candidateShareLinksTable.token, token), eq(candidateShareLinksTable.isActive, "true")));
+  const link = await prisma.candidateShareLink.findUnique({
+    where: { token },
+  });
 
-  if (!link) {
+  if (!link || !link.isActive) {
     res.status(404).json({ error: "Share link not found or revoked" });
     return;
   }
@@ -229,10 +224,10 @@ router.post("/share/:token/decision", async (req, res): Promise<void> => {
     return;
   }
 
-  await db
-    .update(candidateShareLinksTable)
-    .set({ clientDecision: decision, clientFeedback: feedback ?? null })
-    .where(eq(candidateShareLinksTable.token, token));
+  await prisma.candidateShareLink.update({
+    where: { token },
+    data: { clientDecision: decision, clientFeedback: feedback ?? null },
+  });
 
   logger.info(`Client decision [${decision}] recorded for pipeline ${link.pipelineId}`);
   res.json({ success: true, decision });

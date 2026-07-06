@@ -1,11 +1,9 @@
 import { Router, type IRouter } from "express";
-import { db } from "@workspace/db";
-import { candidatesTable, candidatePipelineTable } from "@workspace/db/schema";
-import { eq, and, isNull, ilike, or } from "drizzle-orm";
 import { requireAuth } from "../../middleware/auth";
 import { invalidateCache } from "../../middleware/cache.middleware";
 import multer from "multer";
 import { prisma } from "@workspace/db-prisma";
+import { CandidateSource, PipelineStage } from "@prisma/client";
 import fs from "fs";
 import path from "path";
 import { domainEventBus } from "../../events/event-bus";
@@ -21,33 +19,73 @@ const upload = multer({ dest: uploadDir });
 
 const router: IRouter = Router();
 
-router.get("/candidates", requireAuth, async (req, res): Promise<void> => {
-  const { search, source, location, limit = "50", offset = "0" } = req.query;
+const normalizeSource = (s: string): CandidateSource => {
+  const map: Record<string, CandidateSource> = {
+    referral: CandidateSource.REFERRAL,
+    portal: CandidateSource.PORTAL,
+    social: CandidateSource.SOCIAL,
+    internal: CandidateSource.INTERNAL,
+    direct: CandidateSource.DIRECT,
+  };
+  return map[s.toLowerCase()] ?? CandidateSource.PORTAL;
+};
 
-  const conditions = [isNull(candidatesTable.deletedAt)];
-  if (source && typeof source === "string") conditions.push(eq(candidatesTable.source, source as any));
-  if (location && typeof location === "string") conditions.push(ilike(candidatesTable.location, `%${location}%`));
-  if (search && typeof search === "string") {
-    conditions.push(
-      or(
-        ilike(candidatesTable.name, `%${search}%`),
-        ilike(candidatesTable.email, `%${search}%`),
-        ilike(candidatesTable.currentRole, `%${search}%`),
-      )!
-    );
+router.get("/candidates", requireAuth, async (req, res): Promise<void> => {
+  const tenantId = req.context?.tenantId || req.user?.tenantId;
+  if (!tenantId) {
+    res.status(401).json({ error: "Tenant isolation context missing." });
+    return;
   }
 
-  const rows = await db
-    .select()
-    .from(candidatesTable)
-    .where(and(...conditions))
-    .limit(Number(limit))
-    .offset(Number(offset));
+  const { search, source, location, limit = "50", offset = "0" } = req.query;
 
-  res.json(rows);
+  const where: any = {
+    tenantId,
+    deletedAt: null,
+  };
+
+  if (source && typeof source === "string") {
+    where.source = normalizeSource(source);
+  }
+
+  if (location && typeof location === "string") {
+    where.location = {
+      contains: location,
+      mode: "insensitive",
+    };
+  }
+
+  if (search && typeof search === "string") {
+    where.OR = [
+      { name: { contains: search, mode: "insensitive" } },
+      { email: { contains: search, mode: "insensitive" } },
+      { currentRole: { contains: search, mode: "insensitive" } },
+    ];
+  }
+
+  try {
+    const rows = await prisma.candidate.findMany({
+      where,
+      take: Number(limit),
+      skip: Number(offset),
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+    res.json(rows);
+  } catch (err: any) {
+    console.error("Error fetching candidates:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.post("/candidates", requireAuth, async (req, res): Promise<void> => {
+  const tenantId = req.context?.tenantId || req.user?.tenantId;
+  if (!tenantId) {
+    res.status(401).json({ error: "Tenant isolation context missing." });
+    return;
+  }
+
   const { name, email, phone, currentRole, experienceYears, location, skills, source, currentCtc, expectedCtc, noticeDays, summary } = req.body;
 
   if (!name || !email) {
@@ -57,82 +95,151 @@ router.post("/candidates", requireAuth, async (req, res): Promise<void> => {
 
   const initials = name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
 
-  const tenantId = req.user?.tenantId || "4f019263-832c-45f4-989c-9ca1ddff6bfd";
+  try {
+    const candidate = await prisma.candidate.create({
+      data: {
+        tenantId,
+        name,
+        email,
+        phone,
+        currentRole,
+        experienceYears: experienceYears ? Number(experienceYears) : undefined,
+        location,
+        skills: skills ? (Array.isArray(skills) ? skills : [skills]) : undefined,
+        source: source ? normalizeSource(source) : "PORTAL",
+        currentCtc: currentCtc ? Number(currentCtc) : undefined,
+        expectedCtc: expectedCtc ? Number(expectedCtc) : undefined,
+        noticeDays: noticeDays ? Number(noticeDays) : undefined,
+        summary,
+        initials,
+      },
+    });
 
-  const [candidate] = await db
-    .insert(candidatesTable)
-    .values({
-      tenantId,
-      name, email, phone, currentRole,
-      experienceYears: experienceYears ? Number(experienceYears) : undefined,
-      location, skills, source: source || "portal",
-      currentCtc: currentCtc ? Number(currentCtc) : undefined,
-      expectedCtc: expectedCtc ? Number(expectedCtc) : undefined,
-      noticeDays: noticeDays ? Number(noticeDays) : undefined,
-      summary, initials,
-    })
-    .returning();
+    invalidateCache("dashboard", tenantId).catch((err) => {
+      console.error("Failed to invalidate dashboard cache on candidate creation:", err);
+    });
 
-  invalidateCache("dashboard", tenantId).catch((err) => {
-    console.error("Failed to invalidate dashboard cache on candidate creation:", err);
-  });
-
-  res.status(201).json(candidate);
+    res.status(201).json(candidate);
+  } catch (err: any) {
+    console.error("Error creating candidate:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.get("/candidates/:id", requireAuth, async (req, res): Promise<void> => {
-  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-
-  const [candidate] = await db
-    .select()
-    .from(candidatesTable)
-    .where(and(eq(candidatesTable.id, id), isNull(candidatesTable.deletedAt)));
-
-  if (!candidate) {
-    res.status(404).json({ error: "Candidate not found" });
+  const tenantId = req.context?.tenantId || req.user?.tenantId;
+  if (!tenantId) {
+    res.status(401).json({ error: "Tenant isolation context missing." });
     return;
   }
-  res.json(candidate);
+
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+  try {
+    const candidate = await prisma.candidate.findFirst({
+      where: {
+        id,
+        tenantId,
+        deletedAt: null,
+      },
+    });
+
+    if (!candidate) {
+      res.status(404).json({ error: "Candidate not found" });
+      return;
+    }
+    res.json(candidate);
+  } catch (err: any) {
+    console.error("Error fetching candidate:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.patch("/candidates/:id", requireAuth, async (req, res): Promise<void> => {
-  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { name, email, phone, currentRole, experienceYears, location, skills, source, currentCtc, expectedCtc, noticeDays, summary } = req.body;
-
-  const [updated] = await db
-    .update(candidatesTable)
-    .set({ name, email, phone, currentRole, experienceYears, location, skills, source, currentCtc, expectedCtc, noticeDays, summary, updatedAt: new Date() })
-    .where(and(eq(candidatesTable.id, id), isNull(candidatesTable.deletedAt)))
-    .returning();
-
-  if (!updated) {
-    res.status(404).json({ error: "Candidate not found" });
+  const tenantId = req.context?.tenantId || req.user?.tenantId;
+  if (!tenantId) {
+    res.status(401).json({ error: "Tenant isolation context missing." });
     return;
   }
 
-  const tenantId = req.user?.tenantId || "global";
-  invalidateCache("dashboard", tenantId).catch((err) => {
-    console.error("Failed to invalidate dashboard cache on candidate update:", err);
-  });
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const { name, email, phone, currentRole, experienceYears, location, skills, source, currentCtc, expectedCtc, noticeDays, summary } = req.body;
 
-  res.json(updated);
+  try {
+    const updated = await prisma.candidate.update({
+      where: {
+        id,
+        tenantId,
+      },
+      data: {
+        name,
+        email,
+        phone,
+        currentRole,
+        experienceYears: experienceYears !== undefined ? (experienceYears ? Number(experienceYears) : null) : undefined,
+        location,
+        skills: skills ? (Array.isArray(skills) ? skills : [skills]) : undefined,
+        source: source ? normalizeSource(source) : undefined,
+        currentCtc: currentCtc !== undefined ? (currentCtc ? Number(currentCtc) : null) : undefined,
+        expectedCtc: expectedCtc !== undefined ? (expectedCtc ? Number(expectedCtc) : null) : undefined,
+        noticeDays: noticeDays !== undefined ? (noticeDays ? Number(noticeDays) : null) : undefined,
+        summary,
+        updatedAt: new Date(),
+      },
+    });
+
+    invalidateCache("dashboard", tenantId).catch((err) => {
+      console.error("Failed to invalidate dashboard cache on candidate update:", err);
+    });
+
+    res.json(updated);
+  } catch (err: any) {
+    console.error("Error updating candidate:", err);
+    res.status(404).json({ error: "Candidate not found" });
+  }
 });
 
 router.delete("/candidates/:id", requireAuth, async (req, res): Promise<void> => {
+  const tenantId = req.context?.tenantId || req.user?.tenantId;
+  if (!tenantId) {
+    res.status(401).json({ error: "Tenant isolation context missing." });
+    return;
+  }
+
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  await db.update(candidatesTable).set({ deletedAt: new Date() }).where(eq(candidatesTable.id, id));
 
-  const tenantId = req.user?.tenantId || "global";
-  invalidateCache("dashboard", tenantId).catch((err) => {
-    console.error("Failed to invalidate dashboard cache on candidate delete:", err);
-  });
+  try {
+    await prisma.candidate.update({
+      where: {
+        id,
+        tenantId,
+      },
+      data: {
+        deletedAt: new Date(),
+      },
+    });
 
-  res.sendStatus(204);
+    invalidateCache("dashboard", tenantId).catch((err) => {
+      console.error("Failed to invalidate dashboard cache on candidate delete:", err);
+    });
+
+    res.sendStatus(204);
+  } catch (err: any) {
+    console.error("Error deleting candidate:", err);
+    res.status(404).json({ error: "Candidate not found" });
+  }
 });
 
 // ─── EPIC 2: ASYNCHRONOUS RESUME UPLOAD ──────────────────────────────────────
 router.post("/candidates/upload", requireAuth, upload.single("resume"), async (req, res): Promise<void> => {
-  const { tenantId, userId } = req.context;
+  const tenantId = req.context?.tenantId || req.user?.tenantId;
+  const userId = req.context?.userId || req.user?.userId;
+
+  if (!tenantId) {
+    res.status(401).json({ error: "Tenant isolation context missing." });
+    return;
+  }
+
   const file = req.file;
 
   if (!file) {
@@ -196,27 +303,38 @@ router.post("/candidates/upload", requireAuth, upload.single("resume"), async (r
 });
 
 router.post("/candidates/:id/apply/:requirementId", requireAuth, async (req, res): Promise<void> => {
+  const tenantId = req.context?.tenantId || req.user?.tenantId;
+  if (!tenantId) {
+    res.status(401).json({ error: "Tenant isolation context missing." });
+    return;
+  }
+
   const candidateId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const requirementId = Array.isArray(req.params.requirementId) ? req.params.requirementId[0] : req.params.requirementId;
 
-  const tenantId = req.user?.tenantId || "4f019263-832c-45f4-989c-9ca1ddff6bfd";
+  try {
+    const entry = await prisma.candidatePipeline.create({
+      data: {
+        tenantId,
+        candidateId,
+        jobId: requirementId,
+        stage: PipelineStage.SOURCED,
+        assignedRecruiterId: req.employee?.employeeId || req.user?.userId || undefined,
+      },
+    });
 
-  const [entry] = await db
-    .insert(candidatePipelineTable)
-    .values({
-      tenantId,
-      candidateId,
-      requirementId,
-      stage: "SOURCED",
-      assignedRecruiterId: req.employee?.employeeId,
-    })
-    .returning();
+    invalidateCache("dashboard", tenantId).catch((err) => {
+      console.error("Failed to invalidate dashboard cache on candidate apply:", err);
+    });
 
-  invalidateCache("dashboard", tenantId).catch((err) => {
-    console.error("Failed to invalidate dashboard cache on candidate apply:", err);
-  });
-
-  res.status(201).json(entry);
+    res.status(201).json({
+      ...entry,
+      requirementId: entry.jobId,
+    });
+  } catch (err: any) {
+    console.error("Error applying candidate to job:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;
